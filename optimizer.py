@@ -3,11 +3,11 @@
 ### Functionality: Import
 
 def main(params, config):
-    """ LINEAR OPTIMIZER Rev 0.0a
+    """ LINEAR OPTIMIZER Rev 0.1a
     Uses I and H to produce power plan for a single tank
-    Supports params: I, H, heater_power, l_per_kWh, W_init, loss, dilution
+    Supports params: I, X, G, H, heater_power, l_per_kWh, W_init, loss, dilution
     """
-    
+
     # VALIDATION
     # Validate config
     if not (config['heater_power'] > 0 and config['litres_per_kWh'] > 0 and config['dilution'] >= 1 and
@@ -30,10 +30,11 @@ def main(params, config):
     # There are as many of them as there are time slots, they must be >=0 and are continuous
     # i = import_power
     i = pulp.LpVariable.dicts("i", [n for n in timeslots], lowBound=0, cat='Continuous')
+    s = pulp.LpVariable.dicts("s", [n for n in timeslots], lowBound=0, cat='Continuous')
 
     # OBJECTIVE
     # Sum of [import costs minus export costs]
-    prob += pulp.lpSum([params['I'][t]*i[t] for t in timeslots])
+    prob += pulp.lpSum([params['I'][t]*i[t] - params['X'][t]*(params['G'][t]-s[t]) for t in timeslots])
 
     # CONSTRAINTS
     w = []
@@ -43,11 +44,15 @@ def main(params, config):
             w.append(config['w_init'])
         else:
             # water at t is (w[t-1] - consumption)*(1-loss) + heated volume
-            w.append((w[t-1]- params['H'][t-1]*config['dilution'])*(1-config['loss']) + (i[t-1])*config['litres_per_kWh'])
+            w.append((w[t-1]- params['H'][t-1]*config['dilution'])*(1-config['loss']) + (i[t-1]+s[t-1])*config['litres_per_kWh'])
         # Available DHW at t >= DHW demand (after dilution) in coming 30min
         prob  += w[t] >= params['H'][t]*config['dilution']
         # Heater power limited
-        prob  += i[t] <= config['heater_power']
+        prob  += i[t]+s[t] <= config['heater_power']
+        # Can only use generated solar
+        prob += s[t] <= params['G'][t]
+        # Tank has a capacity limit
+        prob += w[t] <= config['tank_capacity']
 
     # LINEAR PROGRAMMING SOLUTION
     # CBC is the default, but needs defining so I can set msg=0

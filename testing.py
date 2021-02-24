@@ -1,7 +1,7 @@
-from optimizer import main as uut
+from optimizer_zero import main as uut
 from scenarios import basic, loss, solar, export, adv
 
-scenarios = {**basic, **loss}
+scenarios = {**basic, **loss, **solar, **export, **adv}
 
 scorecard = []
 
