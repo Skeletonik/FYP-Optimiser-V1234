@@ -1,0 +1,46 @@
+{
+    "dataSources":{
+        "I": {
+            "source": "limejump",
+            "date_from": "2021-03-04",
+            "date_to": "2021-03-05"
+        },
+        "X": {
+            "source": "JSON",
+            "filename": "./input_data/rates.json"
+        }, 
+        "G": {
+            "source": "JSON",
+            "filename": "./input_data/G_demo.json"
+        },
+        "tanks": {
+            "source": "included"
+        }
+    },
+    "tanks": {
+        "ECC": {
+            "heater_power": 3,
+            "litres_per_kWh": 20,
+            "dilution": 1,
+            "loss": 0.01,
+            "w_init": 10,
+            "tank_capacity": 300,
+            "H": {
+                "source": "JSON",
+                "filename": "./input_data/dhw_ECC.json"
+            }
+        },
+        "Nursery": {
+            "heater_power": 1,
+            "litres_per_kWh": 20,
+            "dilution": 1,
+            "loss": 0.01,
+            "w_init": 10,
+            "tank_capacity": 300,
+            "H": {
+                "source": "JSON",
+                "filename": "./input_data/dhw_nursery.json"
+            }
+        }
+    }
+}
