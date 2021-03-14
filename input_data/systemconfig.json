@@ -1,9 +1,8 @@
 {
     "dataSources":{
         "I": {
-            "source": "limejump",
-            "date_from": "2021-03-04",
-            "date_to": "2021-03-05"
+            "source": "JSON",
+            "filename": "./input_data/rates.json"
         },
         "X": {
             "source": "JSON",
