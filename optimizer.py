@@ -2,7 +2,7 @@
 ### RELEASE 0.0a
 ### Functionality: Import
 
-def main(system):
+def main(system:object) -> object:
     """ LINEAR OPTIMIZER Rev 0.1a
     Uses I and H to produce power plan for a single tank
     Supports system: I, X, G, H, heater_power, l_per_kWh, W_init, loss, dilution
@@ -49,6 +49,7 @@ def main(system):
 
     # CONSTRAINTS
     w = {}
+    x = []
     for t in timeslots:
         # For every tank in the system. All EQs in here apply to each tanks
         for tank in system['tanks']:
