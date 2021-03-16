@@ -117,12 +117,12 @@ def main(configfile):
         response['solution'] = lp_parsed
     # If param lengths were mismatched
     elif lp.result('status') == 1:
-        print("ERROR: ", lp.result())
+        Exception("ERROR: Mismathced param lengths: ", lp.result())
     # If solution was sub-optimal
     elif lp.result('status') == 2:
         print("Sub-optimal")
     else:
-        print("Something broke. Send help")
+        Exception("Something broke. Send help")
     
     return response
 
