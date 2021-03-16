@@ -15,6 +15,7 @@ for name in scenarios:
     if lp.result('status') == scenarios[name]['expectation']['status']:
         # If it was successful, check what we got
         if lp.result('status') == 0:
+            # This is just printing
             for v in lp.result('lp_variables'):
                 if v.varValue != 0:
                     print(v.name, "=", v.varValue)

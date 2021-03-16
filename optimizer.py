@@ -140,6 +140,41 @@ class DHWOptimizer:
             return self.feedback
         else:
             return self.feedback[select]
+
+    def asObj (self) -> object:
+        """ LP RESULT AS OBJECT v2 (formerly in runOptimizer)
+            Parses the PuLP output, prob.variables, to a nice object with FP numbers
+            Much nicer to deal with elsewhere
+            """
+        variables = self.result('lp_variables')
+        powers = {}
+        max_time = 0
+        for variable in variables:
+            # Variables auto-named by PuLP in format: [current_source][tank]_[timeslot]
+            # So this makes a list ["[current_source][tank]", "[timeslot]"] for this variable
+            name_components = variable.name.split('_')
+            # Separate the name out to its component parts
+            current_source = name_components[0][0]
+            tank = name_components[0][1:]
+            time = int(name_components[1])
+            
+            if tank not in powers:
+                powers[tank] = {"i":{}, "s":{}}
+            # Take the value of the variable object
+            # Because the order of [variables] is 0, 1, 10, 11, etc. we have to make a dict
+            # Turns out I was tired doing v1 of this.
+            # Now, we create a dict, per tank, containing i and s. In there is the dict for power@time
+            # So the structure is [tank][current_source][time]
+            # Then below, once we've collected all the data in our dicts, turn the dicts to lists in place
+            powers[tank][current_source][time] = variable.varValue
+            max_time = max(max_time, time)
+
+        for tank in powers:
+            # Go through in numeric, not dict entry, order to create an ordered list
+            powers[tank]['i'] = [powers[tank]['i'][t] for t in range(max_time+1)]
+            powers[tank]['s'] = [powers[tank]['s'][t] for t in range(max_time+1)]
+        powers['max_time'] = max_time
+        return powers
     
         
 

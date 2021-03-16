@@ -1,36 +1,3 @@
-def parseOptimizer (lp_solution):
-    variables = lp_solution['lp_variables']
-    powers = {"i":{}, "s":{}}
-    max_time = 0
-    for variable in variables:
-        # Variables auto-named by PuLP in format: [current_source][tank]_[timeslot]
-        # So this makes a list ["[current_source][tank]", "[timeslot]"] for this variable
-        name_components = variable.name.split('_')
-        # Separate the name out to its component parts
-        current_source = name_components[0][0]
-        tank = name_components[0][1:]
-        time = int(name_components[1])
-        
-        if tank not in powers[current_source]:
-            powers[current_source][tank] = {}
-        # Take the value of the variable object
-        # Because the order of [variables] is 0, 1, 10, 11, etc. we have to make a dict
-        # The dict has to be created with current source as the highest level, because we know beforehand
-        #   only i and s are possible options. Then, we can create all the tanks as we work our way through
-        # Couldn't think of a way to go directly to a powers[tank][current_source][time] structure
-        # Maybe I'm just tired. 
-        # Fix it below
-        powers[current_source][tank][time] = variable.varValue
-        max_time = max(max_time, time)
-
-    # Invert the structure, from tanks per power to powers per tank
-    new_powers = {"max_time": max_time}
-    for tank in powers[current_source]:
-        new_powers[tank] = {}
-        new_powers[tank]['i'] = [powers['i'][tank][t] for t in range(max_time+1)]
-        new_powers[tank]['s'] = [powers['s'][tank][t] for t in range(max_time+1)]
-    return new_powers
-
 def completedObjToCSV(completed_parsed):
     system = completed_parsed['system']
     solution = completed_parsed['solution']
@@ -145,7 +112,8 @@ def main(configfile):
 
     # If the optimizer succeeded
     if lp.result('status') == 0:
-        lp_parsed = parseOptimizer(lp.result())    
+        # lp_parsed = parseOptimizer(lp.result())    
+        lp_parsed = lp.asObj()
         response['solution'] = lp_parsed
     # If param lengths were mismatched
     elif lp.result('status') == 1:
