@@ -3,19 +3,23 @@ def parseOptimizer (lp_solution):
     powers = {"i":{}, "s":{}}
     max_time = 0
     for variable in variables:
-        # Variables auto-named by PuLP in format:
-        #  [current_source][tank]_[timeslot]
-        # So this makes a list ["[current_source][tank]", "[timeslot]"]
+        # Variables auto-named by PuLP in format: [current_source][tank]_[timeslot]
+        # So this makes a list ["[current_source][tank]", "[timeslot]"] for this variable
         name_components = variable.name.split('_')
-        # Separate this out to easier to read names
+        # Separate the name out to its component parts
         current_source = name_components[0][0]
         tank = name_components[0][1:]
         time = int(name_components[1])
-        # Take the value of the variable object
-        # We have to name a slot in the dict after it because order of input is 0, 1, 10...
-        # Fix it below
+        
         if tank not in powers[current_source]:
             powers[current_source][tank] = {}
+        # Take the value of the variable object
+        # Because the order of [variables] is 0, 1, 10, 11, etc. we have to make a dict
+        # The dict has to be created with current source as the highest level, because we know beforehand
+        #   only i and s are possible options. Then, we can create all the tanks as we work our way through
+        # Couldn't think of a way to go directly to a powers[tank][current_source][time] structure
+        # Maybe I'm just tired. 
+        # Fix it below
         powers[current_source][tank][time] = variable.varValue
         max_time = max(max_time, time)
 
@@ -54,7 +58,7 @@ def main(configfile):
     # Import
     from utilities import loadFromJSON
     from utilities import datetimeify
-    from optimizer import main as optimizer
+    from optimizer import DHWOptimizer
     import time ############################################################################
 
     # Load the config to a JSON object
@@ -131,7 +135,7 @@ def main(configfile):
 
     print("Begin LP solution")
     tic = time.perf_counter()
-    lp_solution = optimizer(system)
+    lp = DHWOptimizer(system)
     toc = time.perf_counter()
     print("That took ", toc-tic, " seconds")
 
@@ -140,14 +144,14 @@ def main(configfile):
     }
 
     # If the optimizer succeeded
-    if lp_solution['status'] == 0:
-        lp_parsed = parseOptimizer(lp_solution)    
+    if lp.result('status') == 0:
+        lp_parsed = parseOptimizer(lp.result())    
         response['solution'] = lp_parsed
     # If param lengths were mismatched
-    elif lp_solution['status'] == 1:
-        print("ERROR: ", lp_solution)
+    elif lp.result('status') == 1:
+        print("ERROR: ", lp.result())
     # If solution was sub-optimal
-    elif lp_solution['status'] == 2:
+    elif lp.result('status') == 2:
         print("Sub-optimal")
     else:
         print("Something broke. Send help")
