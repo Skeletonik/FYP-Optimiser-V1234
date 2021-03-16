@@ -6,6 +6,7 @@ import os, sys
 sys.path.append(os.path.relpath('./'))
 # pylint: disable=import-error
 from utilities import floatify
+from utilities import datetimeify
 
 def importCSV (filename:str, date_from:datetime.date, date_to:datetime.date) -> list:
     """ Load energy pricing data from Damon's CSVs to a python object in a format we like
@@ -22,7 +23,7 @@ def importCSV (filename:str, date_from:datetime.date, date_to:datetime.date) -> 
         for row in csv_reader:
             # Grab and parse the date and time
             # Supply Period gives time within day, add it as a timedelta from midnight
-            row['START'] = datetime.datetime.strptime(row['START'], "%Y-%m-%d  %H:%M:%S")
+            row['START'] = datetimeify(row['START'])
             # See if the date and time are within the from/to range
             if date_from <= row['START'] < date_to:
                 imported_data.append(floatify(row, ['EXPORT', 'IMPORT']))

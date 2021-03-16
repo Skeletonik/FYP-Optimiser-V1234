@@ -1,6 +1,12 @@
 import csv
 import datetime
 
+# sledgehammer, walnut, we meet again
+import os, sys
+sys.path.append(os.path.relpath('./'))
+# pylint: disable=import-error
+from utilities import datetimeify
+
 def timedeltaFromSP(supply_period):
     """ Calculate the time within the day given by a supply period. Return as a 
     timedelta to find the time within the day the price is valid for """
@@ -22,7 +28,7 @@ def importCSV (filename:str, date_from:datetime.date, date_to:datetime.date) -> 
         for row in csv_reader:
             # Grab and parse the date and time
             # Supply Period gives time within day, add it as a timedelta from midnight
-            date_now = datetime.datetime.strptime(row['Date'], "%d/%m/%Y") + timedeltaFromSP(row['SP'])
+            date_now = datetimeify(row['Date']) + timedeltaFromSP(row['SP'])
             # See if the date and time are within the from/to range
             if date_from <= date_now < date_to:
                 pricing_data.append(row)

@@ -53,6 +53,7 @@ def completedObjToCSV(completed_parsed):
 def main(configfile):
     # Import
     from utilities import loadFromJSON
+    from utilities import datetimeify
     from optimizer import main as optimizer
     import time ############################################################################
 
@@ -74,11 +75,20 @@ def main(configfile):
             # So need to trim that
             # Also, need to align if we're not running from midnight
             from fetchLJ import lj_rest
-            from datetime import datetime # LJ only do whole days
-            date_from = datetime.strptime(config['dataSources'][var_name]['date_from'], "%Y-%m-%d")
-            date_to = datetime.strptime(config['dataSources'][var_name]['date_to'], "%Y-%m-%d")
+            # from datetime import datetime # LJ only do whole days
+            # date_from = datetime.strptime(config['dataSources'][var_name]['date_from'], "%Y-%m-%d")
+            # date_to = datetime.strptime(config['dataSources'][var_name]['date_to'], "%Y-%m-%d")
+            date_from = datetimeify(config['dataSources'][var_name]['date_from'])
+            date_to = datetimeify(config['dataSources'][var_name]['date_to'])
             # grab the APX data, divide by 10 for p/kWh
-            system[var_name] = [x[1]/10 for x in lj_rest.getAPX(date_from, date_to) if (date_from <= x[0] < date_to)]
+            # getAPX provides {date, price (£/MWh)}
+            system[var_name] = [ 
+                x[1]/10 for x in 
+                    lj_rest.getAPX(
+                            date_from, 
+                            date_to
+                        ) if (date_from <= x[0] < date_to)
+                ]
         elif config['dataSources'][var_name]['source'] == "LJ_CSV":
             # sledgehammer, walnut, we meet again
             import os, sys
@@ -89,8 +99,8 @@ def main(configfile):
             # Yes, this will run twice. There ought to be some way to deal with that... TBD
             system[var_name] = LJfromCSV(
                 config['dataSources'][var_name]['filename'], 
-                datetime.fromisoformat(config['dataSources'][var_name]['date_from']), 
-                datetime.fromisoformat(config['dataSources'][var_name]['date_to'])
+                datetimeify(config['dataSources'][var_name]['date_from']), 
+                datetimeify(config['dataSources'][var_name]['date_to'])
             )[var_name]
         elif config['dataSources'][var_name]['source'] == "PV_CSV":
             # sledgehammer, walnut, we meet again
@@ -101,8 +111,8 @@ def main(configfile):
             from PVfromCSV import main as PVfromCSV
             system[var_name] = PVfromCSV(
                 config['dataSources'][var_name]['filename'], 
-                datetime.fromisoformat(config['dataSources'][var_name]['date_from']), 
-                datetime.fromisoformat(config['dataSources'][var_name]['date_to'])
+                datetimeify(config['dataSources'][var_name]['date_from']), 
+                datetimeify(config['dataSources'][var_name]['date_to'])
             )
 
     # check the sources of every tank's H[ot water demand]
