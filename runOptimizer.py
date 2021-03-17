@@ -22,6 +22,10 @@ def completedObjToCSV(completed_parsed):
     return csv_data
         
 def main(configfile):
+    """ RUNOPTIMIZER MAIN() v2
+        Now with dramatic code quality improvements!
+        
+        """
     # Import
     from utilities import loadFromJSON
     from utilities import datetimeify
@@ -31,75 +35,15 @@ def main(configfile):
     # Load the config to a JSON object
     config = loadFromJSON(configfile)
 
-    # Create empty system object to pass to optimizer
-    system = {}
-    # Check the sources of every variable system variable
-    # I, X, G, tanks
-    for var_name in config['dataSources']:
-        if config['dataSources'][var_name]['source'] == "included":
-            system[var_name] = config[var_name]
-        elif config['dataSources'][var_name]['source'] == "JSON":
-            system[var_name] = loadFromJSON(config['dataSources'][var_name]['filename'])[var_name]
-        elif config['dataSources'][var_name]['source'] == "limejump":
-            ## Currently not working
-            # LJ provide 24hrs data, 00:00-00:00 (49 points hh-ly)
-            # So need to trim that
-            # Also, need to align if we're not running from midnight
-            from fetchLJ import lj_rest
-            # from datetime import datetime # LJ only do whole days
-            # date_from = datetime.strptime(config['dataSources'][var_name]['date_from'], "%Y-%m-%d")
-            # date_to = datetime.strptime(config['dataSources'][var_name]['date_to'], "%Y-%m-%d")
-            date_from = datetimeify(config['dataSources'][var_name]['date_from'])
-            date_to = datetimeify(config['dataSources'][var_name]['date_to'])
-            # grab the APX data, divide by 10 for p/kWh
-            # getAPX provides {date, price (£/MWh)}
-            system[var_name] = [ 
-                x[1]/10 for x in 
-                    lj_rest.getAPX(
-                            date_from, 
-                            date_to
-                        ) if (date_from <= x[0] < date_to)
-                ]
-        elif config['dataSources'][var_name]['source'] == "LJ_CSV":
-            # sledgehammer, walnut, we meet again
-            import os, sys
-            sys.path.append(os.path.relpath('./fetchLJ'))
-            # pylint: disable=import-error
-            from datetime import datetime
-            from LJfromCSV import main as LJfromCSV
-            # Yes, this will run twice. There ought to be some way to deal with that... TBD
-            system[var_name] = LJfromCSV(
-                config['dataSources'][var_name]['filename'], 
-                datetimeify(config['dataSources'][var_name]['date_from']), 
-                datetimeify(config['dataSources'][var_name]['date_to'])
-            )[var_name]
-        elif config['dataSources'][var_name]['source'] == "PV_CSV":
-            # sledgehammer, walnut, we meet again
-            import os, sys
-            sys.path.append(os.path.relpath('./fetchPV'))
-            # pylint: disable=import-error
-            from datetime import datetime
-            from PVfromCSV import main as PVfromCSV
-            system[var_name] = PVfromCSV(
-                config['dataSources'][var_name]['filename'], 
-                datetimeify(config['dataSources'][var_name]['date_from']), 
-                datetimeify(config['dataSources'][var_name]['date_to'])
-            )
+    # ASSEMBLE SYSTEM
+    # Fortunately there's a fancy new class for that
+    from SystemAssembler import SystemAssembler
+    SA = SystemAssembler(config)
+    SA.autoFill()
+    system = SA.system()
 
-    # check the sources of every tank's H[ot water demand]
-    for tank in system['tanks']:
-        if system['tanks'][tank]['H']['source'] == 'included':
-            system['tanks'][tank]['H'] = system['tanks'][tank]['H']['timeseries']
-        elif system['tanks'][tank]['H']['source'] == 'JSON':
-            system['tanks'][tank]['H'] = loadFromJSON(system['tanks'][tank]['H']['filename'])['H']
-
-    # ### TBD ####
-    # ### Really janky, but it works ####
-    # extend_times = 184
-    # for tank in system['tanks']:
-    #     system['tanks'][tank]['H'] = system['tanks'][tank]['H']*extend_times ############################################################################
-    # system['G'] = system['G']*extend_times
-
+    # SOLVE THE SYSTEM
+    # Fortunately there's also a class for that
     print("Begin LP solution")
     tic = time.perf_counter()
     lp = DHWOptimizer(system)
@@ -130,7 +74,7 @@ def main(configfile):
 if __name__ == "__main__":
     import csv
     from utilities import saveAsJSON
-    completed_parsed = main('./input_data/systemconfig.json')
+    completed_parsed = main('./input_data/systemconfig-v2.json')
     data_as_csv = completedObjToCSV(completed_parsed)
     
     # Save as csv for Damon's use
