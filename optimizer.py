@@ -10,19 +10,20 @@ class DHWOptimizer:
         Uses I, X, G and H to produce power plan for n-many individually-defined tanks
         Supports system: I, X, G, H, heater_power, l_per_kWh, W_init, loss, dilution
         """
-    def __init__(self, system:object):
+    def __init__(self, system:dict):
         self.system_definition = system
         # VALIDATE
         validation = self.validate(self.system_definition)
         if validation['status'] == 0:    
             # CONSTRUCT
-            self.constructProblem(system)
+            self._constructProblem(system)
             # SOLVE
             self.solveLp(self.prob)
+        # if validation failed, just give the validation status as feedback
         else:
             self.feedback = validation
 
-    def validate(self, system:object) -> object:
+    def validate(self, system:dict) -> dict:
         """ SYSTEM VALIDATOR
             Validate the system configuration provided. Ensure all timeseriess are 
             valid lengths, and tank definition is physically valid 
@@ -43,7 +44,7 @@ class DHWOptimizer:
                 system['tanks'][tank]['tank_capacity'] >= 0,
                 len(system['tanks'][tank]['H']) == len(system['I'])
             ]):
-                return {'status': 1, 'error': 'invalid parameters for tank \'' + tank +'\''}
+                return {'status': 1, 'error': 'invalid parameters for tank \'' + tank +'\'.'}
             # ... has a timeseries of consumption the same length as other timeseriess
             if not (len(system['tanks'][tank]['H']) == len(system['I'])):
                 return {'status': 1, 'error': 'invalid DHW timeseries length for tank \'' + tank +'\''}
@@ -51,7 +52,7 @@ class DHWOptimizer:
         # If we're here, everything's fine
         return {'status': 0}
 
-    def constructProblem(self, system:object) -> pulp.LpProblem:
+    def _constructProblem(self, system:dict) -> pulp.LpProblem:
         """ PROBLEM CONSTRUCTOR
             Take the system, and format to an LP problem
             """
@@ -107,7 +108,7 @@ class DHWOptimizer:
         
         self.prob = prob
 
-    def solveLp (self, prob:pulp.LpProblem) -> object:
+    def solveLp (self, prob:pulp.LpProblem) -> dict:
         """ LP SYSTEM SOLVER
             Solve the provided LP Problem, and package feedback to self.result() 
             """
@@ -116,10 +117,11 @@ class DHWOptimizer:
         prob.solve(pulp.PULP_CBC_CMD(msg=False))
         # prob.solve()
 
-        # PACKAGE RETURN OBJECT
+        # PACKAGE RETURN DICT
         feedback = {}
         feedback['lp_status']    = pulp.LpStatus[prob.status]
         # Status 0 means things went well. Status 2 means optimization failed
+        # Status 1 was covered above
         feedback['status']       = 0 if feedback['lp_status'] == "Optimal" else 2
         feedback['lp_variables'] = prob.variables()
         feedback['cost']         = pulp.value(prob.objective)
@@ -127,7 +129,7 @@ class DHWOptimizer:
 
     def system(self, select:str=None):
         """ QUERY SYSTEM
-            Return the system for LPing
+            Return the system which was/will be LP-ed
             """
         return self.system_definition
 
@@ -141,9 +143,9 @@ class DHWOptimizer:
         else:
             return self.feedback[select]
 
-    def asObj (self) -> object:
-        """ LP RESULT AS OBJECT v2 (formerly in runOptimizer)
-            Parses the PuLP output, prob.variables, to a nice object with FP numbers
+    def asDict (self) -> dict:
+        """ LP RESULT AS dict v2 (formerly in runOptimizer)
+            Parses the PuLP output, prob.variables, to a nice dict with FP numbers
             Much nicer to deal with elsewhere
             """
         variables = self.result('lp_variables')
@@ -160,7 +162,7 @@ class DHWOptimizer:
             
             if tank not in powers:
                 powers[tank] = {"i":{}, "s":{}}
-            # Take the value of the variable object
+            # Take the value of the variable dict
             # Because the order of [variables] is 0, 1, 10, 11, etc. we have to make a dict
             # Turns out I was tired doing v1 of this.
             # Now, we create a dict, per tank, containing i and s. In there is the dict for power@time
@@ -175,7 +177,8 @@ class DHWOptimizer:
             powers[tank]['s'] = [powers[tank]['s'][t] for t in range(max_time+1)]
         powers['max_time'] = max_time
         return powers
-    
+
+
         
 
     

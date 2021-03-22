@@ -8,6 +8,7 @@ from processMixergy import processMixergy
 
 def fetchMixergy(time_from, time_to, tank_id):
     username = "damon@owensquare.coop"
+    # username = "damon@a5gard.net"
     password = "SyM818^M5h"
     host = "www.mixergy.io"
 
@@ -25,5 +26,8 @@ def fetchMixergy(time_from, time_to, tank_id):
     }
 
 if __name__ == "__main__":
+    import datetime
+    datetime_from = int(datetime.datetime(2021, 2, 28).timestamp())*1000
+    datetime_to   = int(datetime.datetime(2021, 3, 1).timestamp())*1000
     returned = fetchMixergy(1614470400035, 1614556740084, "MX001224")
     print(returned)

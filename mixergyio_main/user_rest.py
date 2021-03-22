@@ -47,7 +47,7 @@ class UserREST(HAL_REST):
     """
 
     def __init__(self, host='www.mixergy.io', username=None, password=None, verify=None, logout_on_exit=True):
-        """Create object, log in if credentials are supplied
+        """Create dict, log in if credentials are supplied
 
         Parameters
         ----------
@@ -58,7 +58,7 @@ class UserREST(HAL_REST):
         password : string
             User's password
         logout_on_exit : boolean
-            When used as a context manager, indicates whether this object should log out on exit
+            When used as a context manager, indicates whether this dict should log out on exit
         """
         super().__init__(host, verify=verify)
 
@@ -133,7 +133,7 @@ class UserREST(HAL_REST):
         Return
         ------
         dictionary
-            Get the user's tanks as a dictionary. The key is the tank serial number, the value is the Tank object.
+            Get the user's tanks as a dictionary. The key is the tank serial number, the value is the Tank dict.
         """
         tanks = self.get_hal_resource('tanks').get_list('tankList')
 
@@ -147,7 +147,7 @@ class UserREST(HAL_REST):
         Parameters
         ----------
         tank : string|Tank
-            If this is a Tank object fetch the HAL resource for the tank. If this is a string, fetch all tanks and extract the Tank object before fetching the HAL resource  .
+            If this is a Tank dict fetch the HAL resource for the tank. If this is a string, fetch all tanks and extract the Tank dict before fetching the HAL resource  .
 
 
         Return
@@ -173,8 +173,8 @@ class UserREST(HAL_REST):
 
         Return
         ----------
-        Object
-            Get the tank's as a Python object. 
+        dict
+            Get the tank's as a Python dict. 
         """
         self.__check_tank(tank)
 
@@ -194,7 +194,7 @@ class UserREST(HAL_REST):
 
         Return
         ----------
-        Object
+        dict
             The response to the request 
         """
         self.__check_tank(tank)
@@ -214,7 +214,7 @@ class UserREST(HAL_REST):
 
         Return
         ----------
-        Object
+        dict
             Measurement data
         """
         self.__check_tank(tank)
@@ -239,7 +239,7 @@ class UserREST(HAL_REST):
 
         Return
         ----------
-        Object
+        dict
             Measurement data
         """
         self.__check_tank(tank)
@@ -257,8 +257,8 @@ class UserREST(HAL_REST):
 
         Return
         ----------
-        Object
-            Get the tank's as a Python object. 
+        dict
+            Get the tank's as a Python dict. 
         """
         self.__check_tank(tank)
 
@@ -276,8 +276,8 @@ class UserREST(HAL_REST):
 
         Return
         ----------
-        Object
-            Get the tank's as a Python object. 
+        dict
+            Get the tank's as a Python dict. 
         """
         self.__check_tank(tank)
         return self.get_hal_json(tank, 'schedule')
@@ -319,8 +319,8 @@ class UserREST(HAL_REST):
 
         Return
         ----------
-        Object
-            Get the tank's as a Python object. 
+        dict
+            Get the tank's as a Python dict. 
         """
         self.__check_tank(tank)
         return self.put_hal(tank, 'control', json=control)

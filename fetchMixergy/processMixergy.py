@@ -1,3 +1,8 @@
+# I've just come back round to this, and it doesn't make sense
+# Surely the idle tank losses are the same as the %SoC loss hidden by heating
+# Because that's exactly what's happening?
+# Possibly this issue is caused by the lack of flange. TBD
+
 # %SoC gain hidden by heating process
 HIDDEN_TANK_LOSSES = [-0.000364187823, -0.000809828852]
 # SoC gained per kWh, for loop off/on
@@ -70,7 +75,7 @@ def findDeltas (mixergy_data):
         effect_adjusted  = heating_adjusted - tankLosses(delta_t, ifPumpedLoop(t['recordedTime']))
         # effect_adjusted = effect_adjusted if effect_adjusted < 0 else 0
 
-        # Pack it all up in a nice object and append to system record
+        # Pack it all up in a nice dict and append to system record
         processed_data.append({'delta_t': delta_t, 'delta_charge': delta_charge, 'energy':energy, 'heating_adjusted': heating_adjusted, 'effect_adjusted': effect_adjusted})
         # Update the previous record to this one
         prev = t

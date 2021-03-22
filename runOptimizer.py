@@ -21,23 +21,19 @@ def completedObjToCSV(completed_parsed):
 
     return csv_data
         
-def main(configfile):
+def main(config:dict):
     """ RUNOPTIMIZER MAIN() v2
         Now with dramatic code quality improvements!
         
         """
     # Import
-    from utilities import loadFromJSON
     from utilities import datetimeify
+    from SystemAssembler import SystemAssembler
     from optimizer import DHWOptimizer
     import time ############################################################################
 
-    # Load the config to a JSON object
-    config = loadFromJSON(configfile)
-
     # ASSEMBLE SYSTEM
     # Fortunately there's a fancy new class for that
-    from SystemAssembler import SystemAssembler
     SA = SystemAssembler(config)
     SA.autoFill()
     system = SA.system()
@@ -50,23 +46,24 @@ def main(configfile):
     toc = time.perf_counter()
     print("That took ", toc-tic, " seconds")
 
+    # Create dict which contains the system which was run,
+    #   and the response, if appropriate
     response = {
         "system": system
     }
 
     # If the optimizer succeeded
-    if lp.result('status') == 0:
-        # lp_parsed = parseOptimizer(lp.result())    
-        lp_parsed = lp.asObj()
-        response['solution'] = lp_parsed
+    if lp.result('status') == 0: 
+        response['solution'] = lp.asDict()
     # If param lengths were mismatched
     elif lp.result('status') == 1:
-        Exception("ERROR: Mismathced param lengths: ", lp.result())
+        raise Exception("ERROR: Mismatched param lengths: ", lp.result())
+        
     # If solution was sub-optimal
     elif lp.result('status') == 2:
         print("Sub-optimal")
     else:
-        Exception("Something broke. Send help")
+        raise Exception("Something broke. Send help")
     
     return response
 
@@ -74,7 +71,12 @@ def main(configfile):
 if __name__ == "__main__":
     import csv
     from utilities import saveAsJSON
-    completed_parsed = main('./input_data/systemconfig-v2.json')
+    from utilities import loadFromJSON
+    # Load the config to a JSON dict
+    configfile = './input_data/systemconfig-v2.json'
+    config = loadFromJSON(configfile)
+    # 
+    completed_parsed = main(config)
     data_as_csv = completedObjToCSV(completed_parsed)
     
     # Save as csv for Damon's use
@@ -83,5 +85,5 @@ if __name__ == "__main__":
         for row in data_as_csv:
             writer.writerow(row)
 
-    # Also save it as a JSON object
+    # Also save it as a JSON dict
     saveAsJSON('./output/completedoptimizer-realdata.json', completed_parsed)

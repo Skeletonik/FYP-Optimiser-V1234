@@ -1,30 +1,29 @@
 from datetime import date
 class SystemAssembler:
     """ SYSTEM ASSEMBLER v1
-        Take a systemconfig object with instructions on assembly. Either autoassemble 
+        Take a systemconfig dict with instructions on assembly. Either autoassemble 
         it, or provide the tools to do so manually
     """
-    def __init__ (self, system_config:object):
-        # Honestly, not 100% I want to take that by default
+    def __init__ (self, system_config:dict):
         self.config = system_config
 
     def system (self):
         """ Returns the current system config """
         return self.simulation_system
 
-    def included (self, source:str) -> object:
-        # Return an object with one key
+    def included (self, source:str) -> dict:
+        # Return a dict with one key
         # var_name: [values]
         return source['data']
 
     def fromJson (self, var_name:str, filename:str) -> list:
         from utilities import loadFromJSON
-        # Return an object with one key
+        # Return a dict with one key
         # var_name: [values]
         # But make sure it's only the right one, for now
         return loadFromJSON(filename)[var_name]
 
-    def ljFromRest (self, date_from:date, date_to:date) -> object:
+    def ljFromRest (self, date_from:date, date_to:date) -> list:
         from fetchLJ import lj_rest
         # grab the APX data, divide by 10 for p/kWh
         # getAPX provides {date, price (£/MWh)}
@@ -36,7 +35,8 @@ class SystemAssembler:
                     ) if (date_from <= x[0] < date_to)
                 ]
 
-    def ljFromCsv (self, filename:str, date_from:date, date_to:date) -> object: # list:
+    def ljFromCsv (self, filename:str, date_from:date, date_to:date) -> dict:
+        # This function is unique, it's the only one which returns I and X in an obj
         # Thus an obj...
         # However, that is in no small part because I haven't finished REST
         # Realistically, I and X will always come together
@@ -56,23 +56,36 @@ class SystemAssembler:
             date_to
         )
 
+    def hFromMixModel (self, filename:str, tank_name:str, date_from:date, date_to:date) -> list:
+        from utilities import loadFromJSON
+        from fetchMixergy import mixergyModel
+        from utilities import datetimeify
+        tank_config = loadFromJSON(filename)[tank_name]
+        date_from = datetimeify(date_from)
+        date_to = datetimeify(date_to)
+        tank = mixergyModel.MixergyModel(tank_config)
+        tank.populate(date_from, date_to, 30)
+        return tank.H()
+
 # Yes, I realise I have two confusingly named "source"s here
 
-    def autoSelectSource (self, source:object, field:str):
+    def autoSelectSource (self, variable:dict, field:str):
         # Python docs officially reccommend using many ifs rather than a case statement...
-        if   source['source'] == "included":
-            return self.included(source)
-        elif source['source'] == "JSON":
-            return self.fromJson(field, source['filename'])
-        elif source['source'] == "LJ_REST":
-            return self.ljFromRest(source['date_from'], source['date_to'])
-        elif source['source'] == "LJ_CSV":
-            return self.ljFromCsv(source['filename'], source['date_from'], source['date_to'])
-        elif source['source'] == "PV_CSV":
-            return self.pvFromCSV(source['filename'], source['date_from'], source['date_to'])
+        if   variable['source'] == "included":
+            return self.included(variable)
+        elif variable['source'] == "JSON":
+            return self.fromJson(field, variable['filename'])
+        elif variable['source'] == "LJ_REST":
+            return self.ljFromRest(variable['date_from'], variable['date_to'])
+        elif variable['source'] == "LJ_CSV":
+            return self.ljFromCsv(variable['filename'], variable['date_from'], variable['date_to'])
+        elif variable['source'] == "PV_CSV":
+            return self.pvFromCSV(variable['filename'], variable['date_from'], variable['date_to'])
+        elif variable['source'] == "MixergyModel":
+            return self.hFromMixModel(variable['filename'], variable['tankname'], variable['date_from'], variable['date_to'])
         # Now we're out of ideas
         else:
-            Exception("Unhandled data source: " + source['source'])
+            Exception("Unhandled data source: " + variable['source'])
 
     def autoFill (self):
         """ SYSTEM AUTO-ASSEMBLER v1
@@ -97,10 +110,16 @@ class SystemAssembler:
                 if 'date' in key:
                     config[field][key] = datetimeify(config[field][key])
             system[field] = self.autoSelectSource(config[field], field)
-        # De-mingle cosourced data. I is always the one sourced
+
         if ix_cosourced:
-            system['X'] = system['I']['X']
-            system['I'] = system['I']['I']
+            if type(system['I']) == dict:
+                system['X'] = system['I']['X']
+                system['I'] = system['I']['I']
+            elif type(system['I']) == list:
+                # This is a case where import/export match. Not realistic; possible
+                system['X'] = system['I']
+            else:
+                Exception("Unknown 'I' format")
             
         # Now we need to go through the tanks and source their data
         for tank in system['tanks']:
@@ -109,3 +128,6 @@ class SystemAssembler:
             system['tanks'][tank]['H'] = self.autoSelectSource(system['tanks'][tank]['H'], 'H')
 
         self.simulation_system = system
+
+if __name__ == '__main__':
+    pass

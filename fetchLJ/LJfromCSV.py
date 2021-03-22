@@ -15,7 +15,7 @@ def timedeltaFromSP(supply_period):
     return datetime.timedelta(hours=0.5*supply_period)
 
 def importCSV (filename:str, date_from:datetime.date, date_to:datetime.date) -> list:
-    """ Load energy pricing data from Damon's CSVs to a python object in a format we like
+    """ Load energy pricing data from Damon's CSVs to a python dict in a format we like
     Note this function assumes 30min periods """
     # Ensure both dates are datetime objects
     for x in [date_from, date_to]:
@@ -36,8 +36,9 @@ def importCSV (filename:str, date_from:datetime.date, date_to:datetime.date) -> 
     return pricing_data
 
 def makeIAndXTariffs (pricing_data:list) -> list:
-    I_components = ['APX HH', 'SSP', 'BSUoS Price', 'GDoUS Price', 'DUoS Price']
-    X_components = ['APX HH']
+    I_components = ['APX HH', 'BSUoS Price', 'AAHEDC Price', 'DUoS Price', 'RO', 'FIT', 'CM', 'CFD']
+    X_components = ['APX HH', 'BSUoS Price', 'AAHEDC Price', 'GDoUS Price']
+    # SSP is wholesale price
     tariffs = {
         "I":[],
         "X":[]
@@ -50,7 +51,7 @@ def makeIAndXTariffs (pricing_data:list) -> list:
         tariffs['X'].append(X)
     return tariffs
 
-def main (filename, date_from, date_to) -> object:
+def main (filename, date_from, date_to) -> dict:
     pricing_data = importCSV('./input_data/damons_HH_combined.csv', date_from, date_to)
     tariffs = makeIAndXTariffs(pricing_data)
     return tariffs

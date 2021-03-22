@@ -9,7 +9,7 @@ from utilities import floatify
 from utilities import datetimeify
 
 def importCSV (filename:str, date_from:datetime.date, date_to:datetime.date) -> list:
-    """ Load energy pricing data from Damon's CSVs to a python object in a format we like
+    """ Load energy pricing data from Damon's CSVs to a python dict in a format we like
     Note this function assumes 30min periods
     """
     # Ensure both dates are datetime objects

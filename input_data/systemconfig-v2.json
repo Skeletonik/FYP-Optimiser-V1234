@@ -28,8 +28,11 @@
                 "w_init": 10,
                 "tank_capacity": 300,
                 "H": {
-                    "source": "JSON",
-                    "filename": "./input_data/dhw_ECC.json"
+                    "source": "MixergyModel",
+                    "tankname": "ECC",
+                    "filename": "./input_data/tank_parameters.json",
+                    "date_from": "2021-02-28T00:00:00",
+                    "date_to":"2021-03-01T00:00:00"
                 }
             },
             "Nursery": {
