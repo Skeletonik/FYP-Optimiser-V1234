@@ -94,13 +94,13 @@ class DHWOptimizer:
                     w[tank].append(system['tanks'][tank].soc_init)
                 else:
                     # Otherwise, calculate water from the previous 30min and consumption/generation
-                    # water at t = (w[t-1] - consumption)*(1-loss) + heated
+                    # water at t = (w[t-1] - consumption + (-ve) loss) + heated
                     w[tank].append(
-                        (w[tank][t-1] - system['tanks'][tank].H()[t-1])*(1-system['tanks'][tank].IDLE_TANK_LOSSES[0]) + 
+                        (w[tank][t-1] - system['tanks'][tank].H(t-1) + system['tanks'][tank].lossInSupplyPeriod(t-1)) + 
                         (i[tank][t-1]+s[tank][t-1])*system['tanks'][tank].soc_per_kWh
                     )
                 # Ensure available SoC at t in each tank >= SoC demand in coming 30min (i.e. demand is met)
-                prob  += w[tank][t] >= system['tanks'][tank].H()[t]
+                prob  += w[tank][t] >= system['tanks'][tank].H(t)
                 # Heater power, regardless of energy source, limited
                 prob  += i[tank][t]+s[tank][t] <= system['tanks'][tank].heater_power
                 # Each tank cannot contain negative water, and has a capacity limit of 100%

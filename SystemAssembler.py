@@ -56,7 +56,7 @@ class SystemAssembler:
             date_to
         )
 
-    def hFromMixModel (self, filename:str, tank_name:str, date_from:date, date_to:date) -> list:
+    def MixModel (self, filename:str, tank_name:str, date_from:date, date_to:date) -> list:
         from utilities import loadFromJSON
         from fetchMixergy import mixergyModel
         from utilities import datetimeify
@@ -65,7 +65,12 @@ class SystemAssembler:
         date_to = datetimeify(date_to)
         tank = mixergyModel.MixergyModel(tank_config)
         tank.populate(date_from, date_to, 30)
-        return tank.H()
+        return tank
+
+    def DummyModel (self, tank_config):
+        from fetchMixergy import mixergyModel
+        tank = mixergyModel.DummyModel(tank_config)
+        return tank
 
 # Yes, I realise I have two confusingly named "source"s here
 
@@ -73,6 +78,8 @@ class SystemAssembler:
         # Python docs officially reccommend using many ifs rather than a case statement...
         if   variable['source'] == "included":
             return self.included(variable)
+        # JSON loading of H is currently broken. 
+        # Isn't a tank object
         elif variable['source'] == "JSON":
             return self.fromJson(field, variable['filename'])
         elif variable['source'] == "LJ_REST":
@@ -81,8 +88,6 @@ class SystemAssembler:
             return self.ljFromCsv(variable['filename'], variable['date_from'], variable['date_to'])
         elif variable['source'] == "PV_CSV":
             return self.pvFromCSV(variable['filename'], variable['date_from'], variable['date_to'])
-        elif variable['source'] == "MixergyModel":
-            return self.hFromMixModel(variable['filename'], variable['tankname'], variable['date_from'], variable['date_to'])
         # Now we're out of ideas
         else:
             Exception("Unhandled data source: " + variable['source'])
@@ -123,9 +128,17 @@ class SystemAssembler:
             
         # Now we need to go through the tanks and source their data
         for tank in system['tanks']:
-            # H is a placeholder of similar format to above, but in situ
-            # So we need to replace it
-            system['tanks'][tank]['H'] = self.autoSelectSource(system['tanks'][tank]['H'], 'H')
+            this_tank = system['tanks'][tank]
+            # Create a tank object for every tank
+            if this_tank['source'] == "MixergyModel":
+                system['tanks'][tank] = self.MixModel(this_tank['filename'], this_tank['tankname'], this_tank['date_from'], this_tank['date_to'])
+            elif this_tank['source'] == "included":
+                system['tanks'][tank] = self.DummyModel(this_tank['data'])
+            else: 
+                pass
+
+            # Currently, can only be sourced direct from mixergy
+            # system['tanks'][tank] = self.autoSelectSource(system['tanks'][tank]['H'], 'H')
 
         self.simulation_system = system
 

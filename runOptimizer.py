@@ -16,7 +16,7 @@ def completedObjToCSV(completed_parsed):
         # H was part of the problem set
         # i and s are the solution
         for tank in system['tanks']:
-            thisrow.extend([system['tanks'][tank].H()[t], solution[tank]['i'][t], solution[tank]['s'][t]])
+            thisrow.extend([system['tanks'][tank].H(t), solution[tank]['i'][t], solution[tank]['s'][t]])
         csv_data.append(thisrow)
 
     return csv_data
