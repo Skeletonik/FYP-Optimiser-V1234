@@ -21,18 +21,19 @@ class MixergyModel:
             len(tank_config['params']["HEATING_TANK_GAIN"]) == 
             len(tank_config['params']["IDLE_TANK_LOSSES"])
         ):
-            Exception("Mismatched tank parameter lengths")
+            raise Exception("Mismatched tank parameter lengths")
         # If we've got a special tank, check it's correctly defined
         if len(tank_config['params']["HIDDEN_TANK_LOSSES"]) > 1:
             if len(tank_config['unusual_periods']) + 1 == len(tank_config['params']["HIDDEN_TANK_LOSSES"]):
                 return True
             else:
-                Exception("Not enough special period definitions for special periods")
+                raise Exception("Not enough special period definitions for special periods")
 
     def unpack(self, tank_config:dict):
         self.tank_id = tank_config['tank_id']
         for param in tank_config['params']:
             setattr(self, param, tank_config['params'][param])
+        # We've already checked these attrs exist
         # self.HIDDEN_TANK_LOSSES = tank_config['params']["HIDDEN_TANK_LOSSES"]
         # self.HEATING_TANK_GAIN  = tank_config['params']["HEATING_TANK_GAIN"]
         # self.IDLE_TANK_LOSSES   = tank_config['params']["IDLE_TANK_LOSSES"]
@@ -170,6 +171,11 @@ class MixergyModel:
         # Removing the negative component of demand errs toward making more DHW (good)
         # We'll find out if that's excessive
         return [max(-slot['consumption'], 0) for slot in self.demand_blocks]
+
+class DummyModel:
+    def __init__ (self, tank_config):
+        for param in tank_config['params']:
+            setattr(self, param, tank_config['params'][param])
 
 if __name__ == '__main__':
     # sledgehammer, walnut, we meet again

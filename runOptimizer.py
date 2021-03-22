@@ -16,7 +16,7 @@ def completedObjToCSV(completed_parsed):
         # H was part of the problem set
         # i and s are the solution
         for tank in system['tanks']:
-            thisrow.extend([system['tanks'][tank]['H'][t], solution[tank]['i'][t], solution[tank]['s'][t]])
+            thisrow.extend([system['tanks'][tank].H()[t], solution[tank]['i'][t], solution[tank]['s'][t]])
         csv_data.append(thisrow)
 
     return csv_data
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     from utilities import saveAsJSON
     from utilities import loadFromJSON
     # Load the config to a JSON dict
-    configfile = './input_data/systemconfig-v2.json'
+    configfile = './input_data/systemconfig-v3.json'
     config = loadFromJSON(configfile)
     # 
     completed_parsed = main(config)
@@ -86,4 +86,6 @@ if __name__ == "__main__":
             writer.writerow(row)
 
     # Also save it as a JSON dict
+    # Temporarily remove the tanks, because they're now objects
+    completed_parsed['system'].pop("tanks")
     saveAsJSON('./output/completedoptimizer-realdata.json', completed_parsed)

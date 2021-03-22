@@ -32,22 +32,25 @@ class DHWOptimizer:
         if not (len(system['I']) == len(system['X']) == len(system['G'])):
             return {'status': 1, 'error': 'mismatched energy availability lengths'}
 
-        # Ensure every tank....
-        for tank in system ['tanks']:
-            # ... has valid tank parameters
-            if not all([
-                system['tanks'][tank]['heater_power'] > 0, 
-                system['tanks'][tank]['litres_per_kWh'] > 0, 
-                system['tanks'][tank]['dilution'] >= 1,
-                0 <= system['tanks'][tank]['loss'] <= 1, 
-                system['tanks'][tank]['w_init'] >= 0,
-                system['tanks'][tank]['tank_capacity'] >= 0,
-                len(system['tanks'][tank]['H']) == len(system['I'])
-            ]):
-                return {'status': 1, 'error': 'invalid parameters for tank \'' + tank +'\'.'}
-            # ... has a timeseries of consumption the same length as other timeseriess
-            if not (len(system['tanks'][tank]['H']) == len(system['I'])):
-                return {'status': 1, 'error': 'invalid DHW timeseries length for tank \'' + tank +'\''}
+        # # Ensure every tank....
+        # for tank in system ['tanks']:
+        #     # ... has valid tank parameters
+        #     if not all([
+        #         system['tanks'][tank]['heater_power'] > 0, 
+        #         system['tanks'][tank]['litres_per_kWh'] > 0, 
+        #         system['tanks'][tank]['dilution'] >= 1,
+        #         0 <= system['tanks'][tank]['loss'] <= 1, 
+        #         system['tanks'][tank]['w_init'] >= 0,
+        #         system['tanks'][tank]['tank_capacity'] >= 0,
+        #         len(system['tanks'][tank]['H']) == len(system['I'])
+        #     ]):
+        #         return {'status': 1, 'error': 'invalid parameters for tank \'' + tank +'\'.'}
+        #     # ... has a timeseries of consumption the same length as other timeseriess
+        #     if not (len(system['tanks'][tank]['H']) == len(system['I'])):
+        #         return {'status': 1, 'error': 'invalid DHW timeseries length for tank \'' + tank +'\''}
+
+        # Temporarily removed tank checks
+        # Completely changing to a model-based approach
 
         # If we're here, everything's fine
         return {'status': 0}
@@ -87,21 +90,21 @@ class DHWOptimizer:
                 if t == 0:
                     # Create a w[ater level] list for each tank
                     w[tank] = []
-                    # Given this is the first time slot, set the water level to the w_init
-                    w[tank].append(system['tanks'][tank]['w_init'])
+                    # Given this is the first time slot, set the SoC level to the s_init
+                    w[tank].append(system['tanks'][tank].soc_init)
                 else:
                     # Otherwise, calculate water from the previous 30min and consumption/generation
                     # water at t = (w[t-1] - consumption)*(1-loss) + heated
                     w[tank].append(
-                        (w[tank][t-1] - system['tanks'][tank]['H'][t-1]*system['tanks'][tank]['dilution'])*(1-system['tanks'][tank]['loss']) + 
-                        (i[tank][t-1]+s[tank][t-1])*system['tanks'][tank]['litres_per_kWh']
+                        (w[tank][t-1] - system['tanks'][tank].H()[t-1])*(1-system['tanks'][tank].IDLE_TANK_LOSSES[0]) + 
+                        (i[tank][t-1]+s[tank][t-1])*system['tanks'][tank].soc_per_kWh
                     )
-                # Ensure available DHW at t in each tank >= DHW demand (after dilution) in coming 30min (i.e. demand is met)
-                prob  += w[tank][t] >= system['tanks'][tank]['H'][t]*system['tanks'][tank]['dilution']
+                # Ensure available SoC at t in each tank >= SoC demand in coming 30min (i.e. demand is met)
+                prob  += w[tank][t] >= system['tanks'][tank].H()[t]
                 # Heater power, regardless of energy source, limited
-                prob  += i[tank][t]+s[tank][t] <= system['tanks'][tank]['heater_power']
-                # Each tank cannot contain negative water, and has a capacity limit
-                prob += 0 <= w[tank][t] <= system['tanks'][tank]['tank_capacity']
+                prob  += i[tank][t]+s[tank][t] <= system['tanks'][tank].heater_power
+                # Each tank cannot contain negative water, and has a capacity limit of 100%
+                prob += 0 <= w[tank][t] <= 100
                 
             # Can only use generated solar once across all tanks
             prob += pulp.lpSum([s[tank][t] for tank in system['tanks']]) <= system['G'][t]
