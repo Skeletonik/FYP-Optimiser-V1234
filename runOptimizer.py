@@ -6,6 +6,7 @@ def completedObjToCSV(completed_parsed):
     firstrow = ['I', 'X', 'G']
     for tank in system['tanks']:
         firstrow.append(tank + '_H')
+        # firstrow.append(tank + '_W')
         firstrow.append(tank + '_i')
         firstrow.append(tank + '_s')
     csv_data.append(firstrow)
@@ -16,7 +17,12 @@ def completedObjToCSV(completed_parsed):
         # H was part of the problem set
         # i and s are the solution
         for tank in system['tanks']:
-            thisrow.extend([system['tanks'][tank].H(t), solution[tank]['i'][t], solution[tank]['s'][t]])
+            thisrow.extend([
+                system['tanks'][tank].H(t), 
+                # system['tanks'][tank].W(t), 
+                solution[tank]['i'][t], 
+                solution[tank]['s'][t]
+            ])
         csv_data.append(thisrow)
 
     return csv_data
@@ -87,5 +93,11 @@ if __name__ == "__main__":
 
     # Also save it as a JSON dict
     # Temporarily remove the tanks, because they're now objects
-    completed_parsed['system'].pop("tanks")
-    saveAsJSON('./output/completedoptimizer-realdata.json', completed_parsed)
+    tanks = completed_parsed['system']['tanks']
+    # Just pull the H lists for each tank
+    # Objects aren't serialisable
+    # That's the bulk, but not entirety, of useful output
+    for tank in tanks:
+        completed_parsed['system']['tanks'][tank] = {"H": tanks[tank].H()}
+
+    saveAsJSON('./completedoptimizer.json', completed_parsed)

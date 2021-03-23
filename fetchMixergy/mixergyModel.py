@@ -43,8 +43,6 @@ class MixergyModel:
         for param in tank_config['params']:
             setattr(self, param, tank_config['params'][param])
 
-        self.w = [w_init]
-
         # We've already checked these attrs exist
         # self.HIDDEN_TANK_LOSSES = tank_config['params']["HIDDEN_TANK_LOSSES"]
         # self.HEATING_TANK_GAIN  = tank_config['params']["HEATING_TANK_GAIN"]
@@ -184,7 +182,7 @@ class MixergyModel:
         # Sum the time periods to get demand in supply_period_duration-long blocks
         self.demand_blocks = self._nMinuteBlocks(deltas, supply_period_duration)
 
-    def H (self, timeslot:int=None):
+    def H (self, timeslot:int=None) -> float:
         # Negative consumption (from MixergyModel context) is demand
         # H takes demand to be positive, so invert consumption
         # Removing the negative component of demand errs toward making more DHW (good)
@@ -196,6 +194,25 @@ class MixergyModel:
             return max(self.demand_blocks[timeslot]['consumption'], 0)
         else:
             raise Exception("You're accessing a timeslot which doesn't exist. Also, I don't know how you even got here.")
+
+    def calculateW (self, power:list) -> float:
+        """ Currently redundant. Should be removed"""
+        # We've got the initial value from config
+        w_soc = [self.soc_init]
+        # So we need to find a W for every timeslot
+        # There are, by definition, as many timeslots as demand blocks
+        # Take 1 off lengths because we've got one entry
+        # Add 1 to t because we've got the first entry
+        for t in range(1, len(self.demand_blocks)-1):
+            # Same calculation as in optimizer (so should get the same result)
+            # water at t = (w[t-1] - consumption + (-ve) loss) + (power * heated water per kWh)
+            w_soc[t] = ((w_soc[t-1] - self.H(t-1) + self.lossInSupplyPeriod(t-1)) + 
+                        (power[t-1])*self.heatingFromEnergy(t))
+
+        self.w_soc[t] = ( 
+            (self.W(t-1) - self.H(t-1) + self.lossInSupplyPeriod(t-1)) + 
+            (power * 0.5)*self.heatingFromEnergy(t)
+        )
 
     def lossInSupplyPeriod (self, timeslot:int) -> float:
         """ find the tank SoC loss in a given time period. For external use """
