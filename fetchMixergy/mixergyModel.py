@@ -2,6 +2,7 @@ import datetime
 
 class MixergyModel:
     def __init__(self, tank_config:dict):
+        """ Initialise a MixergyModel. Can create a dummy if H is provided """
         # Validate the config
         self.validate(tank_config)
         # Given it's valid, process the config to a nice format
@@ -31,36 +32,53 @@ class MixergyModel:
 
     def unpack(self, tank_config:dict):
         self.tank_id = tank_config['tank_id']
+
+        # If there's an H, it's intended to be used as demand_blocks
+        # H in class MixergyModel is a function we don't want overwritten
+        # Repack H to meet the expected format
+        if "H" in tank_config["params"]:
+            self.demand_blocks = [{"consumption": this_H} for this_H in tank_config["params"]["H"]]
+            tank_config["params"].pop("H")
+
         for param in tank_config['params']:
             setattr(self, param, tank_config['params'][param])
+
+        self.w = [w_init]
+
         # We've already checked these attrs exist
         # self.HIDDEN_TANK_LOSSES = tank_config['params']["HIDDEN_TANK_LOSSES"]
         # self.HEATING_TANK_GAIN  = tank_config['params']["HEATING_TANK_GAIN"]
         # self.IDLE_TANK_LOSSES   = tank_config['params']["IDLE_TANK_LOSSES"]
 
-        special_periods = {}
-        dateify = datetime.datetime.strptime
-        for period in tank_config["unusual_periods"]:
-            special_periods[period] = {}
-            special_periods[period]['time_from'] = dateify(tank_config["unusual_periods"][period]['time_from'], "%H:%M").time()
-            special_periods[period]['time_to'] = dateify(tank_config["unusual_periods"][period]['time_to'], "%H:%M").time()
-        self.special_periods = special_periods
+        # If there are unusual periods, process their dates and add them to the object
+        if "unusual_periods" in tank_config:
+            special_periods = {}
+            dateify = datetime.datetime.strptime
+            for period in tank_config["unusual_periods"]:
+                special_periods[period] = {}
+                special_periods[period]['time_from'] = dateify(tank_config["unusual_periods"][period]['time_from'], "%H:%M").time()
+                special_periods[period]['time_to'] = dateify(tank_config["unusual_periods"][period]['time_to'], "%H:%M").time()
+            self.special_periods = special_periods
+
 
     def _isSpecialPeriod (self, ts:int) -> int:
         # Check every period to see if our time falls in the window
         # If it does, return the period
         # TBD: Overlapping periods (and/or rejecting them)
-        time = datetime.datetime.fromtimestamp(ts/1000).time()
-        for period in self.special_periods:
-            if self.special_periods[period]['time_from'] <= time < self.special_periods[period]['time_to']:
-                return int(period)
+        # TBD: Why is this /1000? It was /1000 earlier
+        if hasattr('self', 'special_periods'):
+            time = datetime.datetime.fromtimestamp(ts/1000).time()
+            for period in self.special_periods:
+                if self.special_periods[period]['time_from'] <= time < self.special_periods[period]['time_to']:
+                    return int(period)
         # If nothing matches, it's not in one
-        return 0
+        else:
+            return 0
 
     def _tankLosses (self, delta_t:int, special_period:int=0) -> float:
         """ Find effect of losses on idle tank
         delta_t: time passed within the period loss value is needed
-        pumped_loop: state of the pumped loop at this time """
+        special_period: which special period applies at this time """
         # Model should be improved, this is just linearised in Excel
         # It's a function so it can be improved
         return self.IDLE_TANK_LOSSES[special_period]*delta_t
@@ -158,6 +176,7 @@ class MixergyModel:
         return measurements['content']
 
     def populate (self, time_from:datetime.date, time_to:datetime.date, supply_period_duration:int):
+        self.supply_period_duration = supply_period_duration
         # Fetch from the mixergy API
         retrieved          = self._accessRest(time_from, time_to)
         # Find deltaSoC in every time period
@@ -165,17 +184,46 @@ class MixergyModel:
         # Sum the time periods to get demand in supply_period_duration-long blocks
         self.demand_blocks = self._nMinuteBlocks(deltas, supply_period_duration)
 
-    def H (self):
+    def H (self, timeslot:int=None):
         # Negative consumption (from MixergyModel context) is demand
         # H takes demand to be positive, so invert consumption
         # Removing the negative component of demand errs toward making more DHW (good)
         # We'll find out if that's excessive
-        return [max(-slot['consumption'], 0) for slot in self.demand_blocks]
+        # Also kinda not happy with it, feels like a fudge
+        if timeslot == None:
+            return [max(-slot['consumption'], 0) for slot in self.demand_blocks]
+        elif timeslot <= len(self.demand_blocks):
+            return max(self.demand_blocks[timeslot]['consumption'], 0)
+        else:
+            raise Exception("You're accessing a timeslot which doesn't exist. Also, I don't know how you even got here.")
 
-class DummyModel:
-    def __init__ (self, tank_config):
-        for param in tank_config['params']:
-            setattr(self, param, tank_config['params'][param])
+    def lossInSupplyPeriod (self, timeslot:int) -> float:
+        """ find the tank SoC loss in a given time period. For external use """
+        # Convert the time to seconds since midnight
+        # _isSpecialPeriod() throws away the date, so that's fine
+        time = timeslot*self.supply_period_duration*60
+        # DeltaT is a number of seconds
+        # supply_period_duration is a number of minutes
+        return self._tankLosses(self.supply_period_duration*60, self._isSpecialPeriod(time))
+
+    def heatingFromEnergy (self, timeslot:int) -> float:
+        """ find the tank SoC gain in a given time period from heating. For external use """
+        time = timeslot*self.supply_period_duration*60
+        special_period = self._isSpecialPeriod(time)
+        # This estimate is a simplified version of the reverse-engineering one above
+        # This value will *all* be multiplied by power
+        # Can't make this a function which accepts power because LP
+        # tank gain = %SoC/kWh. 
+        # result will be *kW, so compensate for the "h" here
+        # Putting this in, rather than use soc_per_kWh = 7 dramatically lowered energy consumption
+        # 13 kW30mins -> 6.868
+        return self.HEATING_TANK_GAIN[special_period]*(self.supply_period_duration/60)
+
+
+# class DummyModel:
+#     def __init__ (self, tank_config):
+#         for param in tank_config['params']:
+#             setattr(self, param, tank_config['params'][param])
 
 if __name__ == '__main__':
     # sledgehammer, walnut, we meet again

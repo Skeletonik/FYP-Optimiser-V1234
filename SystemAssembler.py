@@ -69,7 +69,7 @@ class SystemAssembler:
 
     def DummyModel (self, tank_config):
         from fetchMixergy import mixergyModel
-        tank = mixergyModel.DummyModel(tank_config)
+        tank = mixergyModel.MixergyModel(tank_config)
         return tank
 
 # Yes, I realise I have two confusingly named "source"s here

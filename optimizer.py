@@ -94,10 +94,11 @@ class DHWOptimizer:
                     w[tank].append(system['tanks'][tank].soc_init)
                 else:
                     # Otherwise, calculate water from the previous 30min and consumption/generation
-                    # water at t = (w[t-1] - consumption + (-ve) loss) + heated
+                    # water at t = (w[t-1] - consumption + (-ve) loss) + (power * heated water per kWh)
+                    # Sadly, because this is LP, we can't pass the variables in to a function
                     w[tank].append(
                         (w[tank][t-1] - system['tanks'][tank].H(t-1) + system['tanks'][tank].lossInSupplyPeriod(t-1)) + 
-                        (i[tank][t-1]+s[tank][t-1])*system['tanks'][tank].soc_per_kWh
+                        (i[tank][t-1]+s[tank][t-1])*system['tanks'][tank].heatingFromEnergy(t)
                     )
                 # Ensure available SoC at t in each tank >= SoC demand in coming 30min (i.e. demand is met)
                 prob  += w[tank][t] >= system['tanks'][tank].H(t)
