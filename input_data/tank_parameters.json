@@ -2,9 +2,8 @@
     "ECC": {
         "tank_id": "MX001224",
         "params": {
-            "HIDDEN_TANK_LOSSES": [-0.000364187823, -0.000809828852],
+            "TANK_LOSSES": [-0.000364187823, -0.000809828852],
             "HEATING_TANK_GAIN" : [5.73558601, 5.988531764],
-            "IDLE_TANK_LOSSES"  : [-0.000364187823, -0.000809828852],
             "heater_power": 3,
             "supply_period_duration": 30
         },

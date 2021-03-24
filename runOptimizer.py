@@ -81,7 +81,6 @@ if __name__ == "__main__":
     # Load the config to a JSON dict
     configfile = './input_data/systemconfig-v3.json'
     config = loadFromJSON(configfile)
-    # 
     completed_parsed = main(config)
     data_as_csv = completedObjToCSV(completed_parsed)
     

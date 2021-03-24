@@ -11,21 +11,19 @@ class MixergyModel:
     def validate(self, tank_config:dict) -> bool:
         # Check all the keys exist
         if not all([
-            "HIDDEN_TANK_LOSSES" in tank_config['params'],
-            "HEATING_TANK_GAIN" in tank_config['params'],
-            "IDLE_TANK_LOSSES" in tank_config['params']
+            "TANK_LOSSES" in tank_config['params'],
+            "HEATING_TANK_GAIN" in tank_config['params']
         ]):
             Exception("Invalid tank configuration: Missing keys")
         # Check they're all the same length (avoiding a keyerror)
         if not ( 
-            len(tank_config['params']["HIDDEN_TANK_LOSSES"]) == 
-            len(tank_config['params']["HEATING_TANK_GAIN"]) == 
-            len(tank_config['params']["IDLE_TANK_LOSSES"])
+            len(tank_config['params']["TANK_LOSSES"]) == 
+            len(tank_config['params']["HEATING_TANK_GAIN"])
         ):
             raise Exception("Mismatched tank parameter lengths")
         # If we've got a special tank, check it's correctly defined
-        if len(tank_config['params']["HIDDEN_TANK_LOSSES"]) > 1:
-            if len(tank_config['unusual_periods']) + 1 == len(tank_config['params']["HIDDEN_TANK_LOSSES"]):
+        if len(tank_config['params']["TANK_LOSSES"]) > 1:
+            if len(tank_config['unusual_periods']) + 1 == len(tank_config['params']["TANK_LOSSES"]):
                 return True
             else:
                 raise Exception("Not enough special period definitions for special periods")
@@ -47,9 +45,9 @@ class MixergyModel:
             setattr(self, param, tank_config['params'][param])
 
         # We've already checked these attrs exist
-        # self.HIDDEN_TANK_LOSSES = tank_config['params']["HIDDEN_TANK_LOSSES"]
+        # self.TANK_LOSSES = tank_config['params']["TANK_LOSSES"]
         # self.HEATING_TANK_GAIN  = tank_config['params']["HEATING_TANK_GAIN"]
-        # self.IDLE_TANK_LOSSES   = tank_config['params']["IDLE_TANK_LOSSES"]
+        # self.TANK_LOSSES   = tank_config['params']["TANK_LOSSES"]
 
         # If there are unusual periods, process their dates and add them to the object
         if "unusual_periods" in tank_config:
@@ -82,7 +80,7 @@ class MixergyModel:
         special_period: which special period applies at this time """
         # Model should be improved, this is just linearised in Excel
         # It's a function so it can be improved
-        return self.IDLE_TANK_LOSSES[special_period]*delta_t
+        return self.TANK_LOSSES[special_period]*delta_t
 
     def _heatingGain (self, delta_t:int, energy:float, special_period:int=0) -> float:
         """ Find effect of heating on delta_SoC, to allow compensation
@@ -92,7 +90,7 @@ class MixergyModel:
 
         # Total losses hidden by heating are:
         #   ([+ve gain effect of heating (%/min)] -  [-ve real losses (%/min)])
-        return self.HEATING_TANK_GAIN[special_period]*energy - self.HIDDEN_TANK_LOSSES[special_period]*delta_t
+        return self.HEATING_TANK_GAIN[special_period]*energy - self.TANK_LOSSES[special_period]*delta_t
 
     def _findDeltas (self, mixergy_data:dict) -> list:
         processed_data = []
@@ -109,9 +107,11 @@ class MixergyModel:
             delta_charge  = t['charge'] - prev['charge']
             # Find energy put in the tank (Watt Seconds) -> kWh
             energy = (t['voltage'] * t['current'] * delta_t)/3600000
-            # Adjust for heating effects hiding demand 
-            # Then adjust for losses
+            # Adjust to remove heating effect (no deltaSoC) and reinstate losses which were
+            #   covered up by heating
+            # Then remove those losses again
             # What's left is pure demand
+            # This may seem redundant
             heating_adjusted = delta_charge - self._heatingGain(delta_t, energy, self._isSpecialPeriod(t['recordedTime']))
             effect_adjusted  = heating_adjusted - self._tankLosses(delta_t, self._isSpecialPeriod(t['recordedTime']))
             # effect_adjusted = effect_adjusted if effect_adjusted < 0 else 0
