@@ -40,6 +40,9 @@ class MixergyModel:
             self.demand_blocks = [{"consumption": this_H} for this_H in tank_config["params"]["H"]]
             tank_config["params"].pop("H")
 
+        # Set a default SoC target
+        self.soc_target = 0
+
         for param in tank_config['params']:
             setattr(self, param, tank_config['params'][param])
 
@@ -177,6 +180,9 @@ class MixergyModel:
         self.supply_period_duration = supply_period_duration
         # Fetch from the mixergy API
         retrieved          = self._accessRest(time_from, time_to)
+        # Use the first charge value as soc_init, and last as soc_target
+        self.soc_init      = retrieved[0]["charge"]
+        self.soc_target    = retrieved[-1]["charge"]
         # Find deltaSoC in every time period
         deltas             = self._findDeltas(retrieved)
         # Sum the time periods to get demand in supply_period_duration-long blocks

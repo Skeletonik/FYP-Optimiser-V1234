@@ -6,8 +6,7 @@
             "HEATING_TANK_GAIN" : [5.73558601, 5.988531764],
             "IDLE_TANK_LOSSES"  : [-0.000733592783, -0.001861482633],
             "heater_power": 3,
-            "soc_init": 10
-            
+            "supply_period_duration": 30
         },
         "unusual_periods": {
             "1": {

@@ -87,18 +87,20 @@ class DHWOptimizer:
         for t in timeslots:
             # For every tank in the system. All EQs in here apply to each tanks
             for tank in system['tanks']:
+                # Set up the initial conditions
                 if t == 0:
                     # Create a w[ater level] list for each tank
                     w[tank] = []
                     # Given this is the first time slot, set the SoC level to the s_init
                     w[tank].append(system['tanks'][tank].soc_init)
+                # Everything in the middle is calculated
                 else:
                     # Otherwise, calculate water from the previous 30min and consumption/generation
-                    # water at t = (w[t-1] - consumption + (-ve) loss) + (power * time * heated water per kWh)
+                    # water at t = (w[t-1] - consumption + (-ve) loss) + (power * heated water per kW within time period)
                     # Sadly, because this is LP, we can't pass the variables in to a function
                     w[tank].append(
                         (w[tank][t-1] - system['tanks'][tank].H(t-1) + system['tanks'][tank].lossInSupplyPeriod(t-1)) + 
-                        (i[tank][t-1]+s[tank][t-1])*(system['tanks'][tank].supply_period_duration/60)*system['tanks'][tank].heatingFromEnergy(t)
+                        (i[tank][t-1]+s[tank][t-1])*system['tanks'][tank].heatingFromEnergy(t)
                     )
                 # Ensure available SoC at t in each tank >= SoC demand in coming 30min (i.e. demand is met)
                 prob  += w[tank][t] >= system['tanks'][tank].H(t)
@@ -109,7 +111,11 @@ class DHWOptimizer:
                 
             # Can only use generated solar once across all tanks
             prob += pulp.lpSum([s[tank][t] for tank in system['tanks']]) <= system['G'][t]
-        
+
+        # Ensure each tank has its target set
+        # Dual constraint on final time period
+        for tank in system['tanks']:
+            prob += w[tank][len(timeslots)-1] >= system['tanks'][tank].soc_target
         self.prob = prob
 
     def solveLp (self, prob:pulp.LpProblem) -> dict:
