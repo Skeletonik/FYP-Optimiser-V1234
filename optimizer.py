@@ -116,6 +116,7 @@ class DHWOptimizer:
         # Dual constraint on final time period
         for tank in system['tanks']:
             prob += w[tank][len(timeslots)-1] >= system['tanks'][tank].soc_target
+            
         self.prob = prob
 
     def solveLp (self, prob:pulp.LpProblem) -> dict:

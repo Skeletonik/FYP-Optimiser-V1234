@@ -67,14 +67,14 @@ class MixergyModel:
         # If it does, return the period
         # TBD: Overlapping periods (and/or rejecting them)
         # TBD: Why is this /1000? It was /1000 earlier
-        if hasattr('self', 'special_periods'):
-            time = datetime.datetime.fromtimestamp(ts/1000).time()
+        if hasattr(self, 'special_periods'):
+            # time = datetime.datetime.fromtimestamp(ts/1000).time()
+            time = datetime.datetime.fromtimestamp(ts).time()
             for period in self.special_periods:
                 if self.special_periods[period]['time_from'] <= time < self.special_periods[period]['time_to']:
                     return int(period)
-        # If nothing matches, it's not in one
-        else:
-            return 0
+        # If we're here, nothing matches; it's not in one
+        return 0
 
     def _tankLosses (self, delta_t:int, special_period:int=0) -> float:
         """ Find effect of losses on idle tank
@@ -231,8 +231,8 @@ class MixergyModel:
 
     def heatingFromEnergy (self, timeslot:int) -> float:
         """ find the tank SoC gain in a given time period from heating. For external use """
-        time = timeslot*self.supply_period_duration*60
-        special_period = self._isSpecialPeriod(time)
+        ts = timeslot*self.supply_period_duration*60
+        special_period = self._isSpecialPeriod(ts)
         # This estimate is a simplified version of the reverse-engineering one above
         # This value will *all* be multiplied by power
         # Can't make this a function which accepts power because LP
