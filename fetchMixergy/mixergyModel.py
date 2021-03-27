@@ -2,13 +2,14 @@ import datetime
 
 class MixergyModel:
     def __init__(self, tank_config:dict):
-        """ Initialise a MixergyModel. Can create a dummy if H is provided """
+        """ Initialise a MixergyModel. Can create a dummy if H is provided in params """
         # Validate the config
         self.validate(tank_config)
         # Given it's valid, process the config to a nice format
         self.unpack(tank_config)
 
     def validate(self, tank_config:dict) -> bool:
+        """ Validate the tank config being provided. Most important, check TANK_LOSSES and HEATING_TANK_GAIN exist """
         # Check all the keys exist
         if not all([
             "TANK_LOSSES" in tank_config['params'],
@@ -29,6 +30,7 @@ class MixergyModel:
                 raise Exception("Not enough special period definitions for special periods")
 
     def unpack(self, tank_config:dict):
+        """ Unpack the settings dict to the tank object. Process any dates/times from JSON, etc """
         self.tank_id = tank_config['tank_id']
 
         # If there's an H, it's intended to be used as demand_blocks
@@ -41,13 +43,10 @@ class MixergyModel:
         # Set a default SoC target
         self.soc_target = 0
 
+        # Unpack all the params
+        # We've already checked the key ones exist
         for param in tank_config['params']:
             setattr(self, param, tank_config['params'][param])
-
-        # We've already checked these attrs exist
-        # self.TANK_LOSSES = tank_config['params']["TANK_LOSSES"]
-        # self.HEATING_TANK_GAIN  = tank_config['params']["HEATING_TANK_GAIN"]
-        # self.TANK_LOSSES   = tank_config['params']["TANK_LOSSES"]
 
         # If there are unusual periods, process their dates and add them to the object
         if "unusual_periods" in tank_config:
@@ -61,12 +60,11 @@ class MixergyModel:
 
 
     def _isSpecialPeriod (self, ts:int) -> int:
+        """ Check if the current time is special, and if it is, what kind """
         # Check every period to see if our time falls in the window
         # If it does, return the period
         # TBD: Overlapping periods (and/or rejecting them)
-        # TBD: Why is this /1000? It was /1000 earlier
         if hasattr(self, 'special_periods'):
-            # time = datetime.datetime.fromtimestamp(ts/1000).time()
             time = datetime.datetime.fromtimestamp(ts).time()
             for period in self.special_periods:
                 if self.special_periods[period]['time_from'] <= time < self.special_periods[period]['time_to']:
@@ -84,8 +82,9 @@ class MixergyModel:
 
     def _heatingGain (self, delta_t:int, energy:float, special_period:int=0) -> float:
         """ Find effect of heating on delta_SoC, to allow compensation
-        power: kWh input over minute
-        pumped_loop: bool, is the pump on? """
+        delta_t: duration of the heating period
+        energy: kWh provided
+        special_period: which special period applies (none = 0) """
         # Model should be improved, this is just linearised in Excel
 
         # Total losses hidden by heating are:
@@ -93,6 +92,8 @@ class MixergyModel:
         return self.HEATING_TANK_GAIN[special_period]*energy - self.TANK_LOSSES[special_period]*delta_t
 
     def _findDeltas (self, mixergy_data:dict) -> list:
+        """ Find the change in SoC due to demand. Removes heating and loss effects 
+        using _heatingGain() and _tankLosses() """
         processed_data = []
         # Define the "previous" values for the first calculation
         prev = mixergy_data[0]
@@ -108,10 +109,12 @@ class MixergyModel:
             # Find energy put in the tank (Watt Seconds) -> kWh
             energy = (t['voltage'] * t['current'] * delta_t)/3600000
             # Adjust to remove heating effect (no deltaSoC) and reinstate losses which were
-            #   covered up by heating
-            # Then remove those losses again
+            #   covered up by heating (negative deltaSoC)
+            # Then remove those losses again (no deltaSoC)
             # What's left is pure demand
-            # This may seem redundant
+            # This may seem redundant. It is.
+            # I feel like it's justifiable, and it certainly seems to work.
+            # Morning Seb should get back to you, TBD
             heating_adjusted = delta_charge - self._heatingGain(delta_t, energy, self._isSpecialPeriod(t['recordedTime']))
             effect_adjusted  = heating_adjusted - self._tankLosses(delta_t, self._isSpecialPeriod(t['recordedTime']))
             # effect_adjusted = effect_adjusted if effect_adjusted < 0 else 0
@@ -124,6 +127,8 @@ class MixergyModel:
         return processed_data
 
     def _nMinuteBlocks (self, delta_data:list, n_minutes:int) -> list:
+        """ Collect up minute-by-minute data to n_minute-long blocks. Spare minutes 
+        are added to the last block """
         block_data = []
         sum_t = 0
         consumption = 0
@@ -154,6 +159,8 @@ class MixergyModel:
         return block_data
 
     def _accessRest (self, time_from:datetime.date, time_to:datetime.date) -> dict:
+        """ Access the Mixergy REST API to retrieve tank data. Credit to CEPro
+        Uses CEPro user_rest """
         # sledgehammer, walnut, we meet again
         import os, sys
         sys.path.append(os.path.relpath('./mixergyio_main'))
@@ -177,10 +184,13 @@ class MixergyModel:
         return measurements['content']
 
     def populate (self, time_from:datetime.date, time_to:datetime.date, supply_period_duration:int):
+        """ Populate this MixergyModel from the Mixergy API. Fetches data between dates, and brackets
+        demand in to supply periods of n minutes """
         self.supply_period_duration = supply_period_duration
         # Fetch from the mixergy API
         retrieved          = self._accessRest(time_from, time_to)
         # Use the first charge value as soc_init, and last as soc_target
+        # This gives us a fair grounds for comparison of energy consumption
         self.soc_init      = retrieved[0]["charge"]
         self.soc_target    = retrieved[-1]["charge"]
         # Find deltaSoC in every time period
@@ -189,6 +199,8 @@ class MixergyModel:
         self.demand_blocks = self._nMinuteBlocks(deltas, supply_period_duration)
 
     def H (self, timeslot:int=None) -> float:
+        """ Calculate H, returning either the full list or only a single timeslot. 
+        Sets a floor on H of zero. """
         # Negative consumption (from MixergyModel context) is demand
         # H takes demand to be positive, so invert consumption
         # Removing the negative component of demand errs toward making more DHW (good)
@@ -201,28 +213,9 @@ class MixergyModel:
         else:
             raise Exception("You're accessing a timeslot which doesn't exist. Also, I don't know how you even got here.")
 
-    def calculateW (self, power:list) -> float:
-        """ Currently redundant. Should be removed"""
-        # We've got the initial value from config
-        w_soc = [self.soc_init]
-        # So we need to find a W for every timeslot
-        # There are, by definition, as many timeslots as demand blocks
-        # Take 1 off lengths because we've got one entry
-        # Add 1 to t because we've got the first entry
-        for t in range(1, len(self.demand_blocks)-1):
-            # Same calculation as in optimizer (so should get the same result)
-            # water at t = (w[t-1] - consumption + (-ve) loss) + (power * heated water per kWh)
-            w_soc[t] = ((w_soc[t-1] - self.H(t-1) + self.lossInSupplyPeriod(t-1)) + 
-                        (power[t-1])*self.heatingFromEnergy(t))
-
-        self.w_soc[t] = ( 
-            (self.W(t-1) - self.H(t-1) + self.lossInSupplyPeriod(t-1)) + 
-            (power * 0.5)*self.heatingFromEnergy(t)
-        )
-
     def lossInSupplyPeriod (self, timeslot:int) -> float:
-        """ find the tank SoC loss in a given time period. For external use """
-        # Convert the time to seconds since midnight
+        """ find the tank SoC loss in a given supply_period_duration. Also checks for special times. For external use """
+        # Convert the time to seconds since midnight Unix time
         # _isSpecialPeriod() throws away the date, so that's fine
         time = timeslot*self.supply_period_duration*60
         # DeltaT is a number of seconds
@@ -230,7 +223,7 @@ class MixergyModel:
         return self._tankLosses(self.supply_period_duration*60, self._isSpecialPeriod(time))
 
     def heatingFromEnergy (self, timeslot:int) -> float:
-        """ find the tank SoC gain in a given time period from heating. For external use """
+        """ find the tank SoC/kW in a supply_period_duration. Also checks for special times. For external use """
         ts = timeslot*self.supply_period_duration*60
         special_period = self._isSpecialPeriod(ts)
         # This estimate is a simplified version of the reverse-engineering one above
@@ -238,15 +231,7 @@ class MixergyModel:
         # Can't make this a function which accepts power because LP
         # tank gain = %SoC/kWh. 
         # result will be *kW, so compensate for the "h" here
-        # Putting this in, rather than use soc_per_kWh = 7 dramatically lowered energy consumption
-        # 13 kW30mins -> 6.868
         return self.HEATING_TANK_GAIN[special_period]*(self.supply_period_duration/60)
-
-
-# class DummyModel:
-#     def __init__ (self, tank_config):
-#         for param in tank_config['params']:
-#             setattr(self, param, tank_config['params'][param])
 
 if __name__ == '__main__':
     # sledgehammer, walnut, we meet again
