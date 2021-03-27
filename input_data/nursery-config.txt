@@ -1,0 +1,17 @@
+,
+            "Nursery": {
+                "source": "included",
+                "data": {
+                    "tank_id": "Nursery",
+                    "params": {
+                        "HIDDEN_TANK_LOSSES": [-0.000364187823],
+                        "HEATING_TANK_GAIN" : [5.73558601],
+                        "IDLE_TANK_LOSSES"  : [-0.000733592783],
+                        "heater_power": 1,
+                        "soc_init": 10,
+                        "soc_target": 10,
+                        "supply_period_duration": 30,
+                        "H": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    }
+                }
+            }

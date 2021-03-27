@@ -40,6 +40,33 @@ def datetimeify (string:str) -> datetime.date:
 
     return datetime.strptime(string, string_format)
 
+def recursiveReplace (obj, key, replace_value):
+    """ Replace the value of a dictionary key with replace_value, recursively """
+    if key in obj:
+        obj[key] = replace_value
+    for item in obj:
+        if type(obj[item]) == 'dict':
+            obj[item] = recursiveReplace(obj[item], key, replace_value)
+    return obj
+
+def listProduct (a:list, b:list) -> list:
+    if len(a) == len(b):
+        zipped = zip(a, b)    
+    return [a*b for a, b in zipped]
+
+def sumProduct (a:list, b:[list, float, int]) -> float:
+    if type(b) != list:
+        zipped = zip(a, [b*1 for item in a])
+    elif len(a) == len(b):
+        zipped = zip(a, b)        
+    return sum([a*b for a, b in zipped])
+
+def listSum (a:list, b:list) -> list:
+    if len(a) == len(b):
+        zipped = zip(a, b)    
+    return [a+b for a, b in zipped]
+
+
 if __name__ == "__main__":
     
     print(datetimeify("2016-01-13 00:03:27"))

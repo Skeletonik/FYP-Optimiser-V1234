@@ -24,6 +24,7 @@ class SystemAssembler:
         return loadFromJSON(filename)[var_name]
 
     def ljFromRest (self, date_from:date, date_to:date) -> list:
+        """ Currently redundant """
         from fetchLJ import lj_rest
         # grab the APX data, divide by 10 for p/kWh
         # getAPX provides {date, price (£/MWh)}
@@ -119,6 +120,8 @@ class SystemAssembler:
         if ix_cosourced:
             if type(system['I']) == dict:
                 system['X'] = system['I']['X']
+                system['paidX'] = system['I']['paidX']
+                system['paidI'] = system['I']['paidI']
                 system['I'] = system['I']['I']
             elif type(system['I']) == list:
                 # This is a case where import/export match. Not realistic; possible

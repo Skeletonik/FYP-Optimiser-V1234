@@ -213,6 +213,15 @@ class MixergyModel:
         else:
             raise Exception("You're accessing a timeslot which doesn't exist. Also, I don't know how you even got here.")
 
+    def realworldE (self, timeslot:int=None) -> float:
+        """ Retrieve the real E (import Energy) for the Mixergy tank. Only runs on real-world data (obv) """
+        if timeslot == None:
+            return [slot['energy'] for slot in self.demand_blocks]
+        elif timeslot <= len(self.demand_blocks):
+            return self.demand_blocks[timeslot]['energy']
+        else:
+            raise Exception("You're accessing a timeslot which doesn't exist.")
+
     def lossInSupplyPeriod (self, timeslot:int) -> float:
         """ find the tank SoC loss in a given supply_period_duration. Also checks for special times. For external use """
         # Convert the time to seconds since midnight Unix time

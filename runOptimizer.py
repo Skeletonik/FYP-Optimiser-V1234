@@ -3,23 +3,23 @@ def completedObjToCSV(completed_parsed):
     solution = completed_parsed['solution']
     csv_data = []
     # Define the column headers
-    firstrow = ['I', 'X', 'G']
+    firstrow = ['I', 'paidI', 'X', 'paidX', 'G']
     for tank in system['tanks']:
         firstrow.append(tank + '_H')
-        # firstrow.append(tank + '_W')
+        firstrow.append(tank + '_E')
         firstrow.append(tank + '_i')
         firstrow.append(tank + '_s')
     csv_data.append(firstrow)
     # Pull the data out, as all arrays must be the same length
     for t in range(solution['max_time']+1):
-        thisrow = [system['I'][t], system['X'][t], system['G'][t]]
+        thisrow = [system['I'][t], system['paidI'][t], system['X'][t], system['paidX'][t], system['G'][t]]
         # Make sure we include every one of n tanks
         # H was part of the problem set
         # i and s are the solution
         for tank in system['tanks']:
             thisrow.extend([
                 system['tanks'][tank].H(t), 
-                # system['tanks'][tank].W(t), 
+                system['tanks'][tank].realworldE(t), 
                 solution[tank]['i'][t], 
                 solution[tank]['s'][t]
             ])
@@ -30,7 +30,7 @@ def completedObjToCSV(completed_parsed):
 def main(config:dict):
     """ RUNOPTIMIZER MAIN() v2
         Now with dramatic code quality improvements!
-        
+
         """
     # Import
     from utilities import datetimeify

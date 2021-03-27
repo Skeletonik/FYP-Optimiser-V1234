@@ -38,17 +38,25 @@ def importCSV (filename:str, date_from:datetime.date, date_to:datetime.date) -> 
 def makeIAndXTariffs (pricing_data:list) -> list:
     I_components = ['APX HH', 'BSUoS Price', 'AAHEDC Price', 'DUoS Price', 'RO', 'FIT', 'CM', 'CFD']
     X_components = ['APX HH', 'BSUoS Price', 'AAHEDC Price', 'GDoUS Price']
+    paidI_components = ['SSP', 'BSUoS Price', 'AAHEDC Price', 'DUoS Price', 'RO', 'FIT', 'CM', 'CFD']
+    paidX_components = ['SSP', 'BSUoS Price', 'AAHEDC Price', 'GDoUS Price']
     # SSP is wholesale price
     tariffs = {
         "I":[],
-        "X":[]
+        "X":[],
+        "paidI":[],
+        "paidX":[]
     }
     for row in pricing_data:
         # Sum the components which make each price, to make a list of price WRT time
         I = sum([float(row[cost])/10 for cost in I_components])
         X = sum([float(row[cost])/10 for cost in X_components])
+        paidI = sum([float(row[cost])/10 for cost in paidI_components])
+        paidX = sum([float(row[cost])/10 for cost in paidX_components])
         tariffs['I'].append(I)
         tariffs['X'].append(X)
+        tariffs['paidI'].append(paidI)
+        tariffs['paidX'].append(paidX)
     return tariffs
 
 def main (filename, date_from, date_to) -> dict:
