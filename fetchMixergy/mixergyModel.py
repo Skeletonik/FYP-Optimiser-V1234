@@ -89,7 +89,7 @@ class MixergyModel:
 
         # Total losses hidden by heating are:
         #   ([+ve gain effect of heating (%/min)] -  [-ve real losses (%/min)])
-        return self.HEATING_TANK_GAIN[special_period]*energy - self.TANK_LOSSES[special_period]*delta_t
+        return self.HEATING_TANK_GAIN[special_period]*energy + self.TANK_LOSSES[special_period]*delta_t
 
     def _findDeltas (self, mixergy_data:dict) -> list:
         """ Find the change in SoC due to demand. Removes heating and loss effects 
@@ -115,8 +115,14 @@ class MixergyModel:
             # This may seem redundant. It is.
             # I feel like it's justifiable, and it certainly seems to work.
             # Morning Seb should get back to you, TBD
+            ###############################################################
+            # Good work, evening Seb (?) - Also Evening Seb
+
             heating_adjusted = delta_charge - self._heatingGain(delta_t, energy, self._isSpecialPeriod(t['recordedTime']))
-            effect_adjusted  = heating_adjusted - self._tankLosses(delta_t, self._isSpecialPeriod(t['recordedTime']))
+            # effect_adjusted  = heating_adjusted - self._tankLosses(delta_t, self._isSpecialPeriod(t['recordedTime']))
+            effect_adjusted = heating_adjusted
+
+
             # effect_adjusted = effect_adjusted if effect_adjusted < 0 else 0
 
             # Pack it all up in a nice dict and append to system record
@@ -207,9 +213,11 @@ class MixergyModel:
         # We'll find out if that's excessive
         # Also kinda not happy with it, feels like a fudge
         if timeslot == None:
-            return [max(-slot['consumption'], 0) for slot in self.demand_blocks]
+            # return [max(-slot['consumption'], 0) for slot in self.demand_blocks]
+            return [-slot['consumption'] for slot in self.demand_blocks]
         elif timeslot <= len(self.demand_blocks):
-            return max(self.demand_blocks[timeslot]['consumption'], 0)
+            # return max(-self.demand_blocks[timeslot]['consumption'], 0)
+            return -self.demand_blocks[timeslot]['consumption']
         else:
             raise Exception("You're accessing a timeslot which doesn't exist. Also, I don't know how you even got here.")
 
