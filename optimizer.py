@@ -76,11 +76,14 @@ class DHWOptimizer:
             s[tank] = pulp.LpVariable.dicts("s"+tank, [n for n in timeslots], lowBound=0, cat='Continuous')
 
         # OBJECTIVE
-        # Sum of ([import costs] - [export costs])
+        # Sum of ([import costs] + [opportunity cost of export]) across every time period
         ####
-        # TBD: I'm starting to have suspicions about the accuracy of this. Looks like it'll add an export of all the energy not self-consumed by each tank
-        #        (so considers export energy tank-many times)
-        prob += pulp.lpSum([system['I'][t]*i[tank][t] - system['X'][t]*(system['G'][t]-s[tank][t]) for t in timeslots for tank in system['tanks']])      
+        # prob += pulp.lpSum([system['I'][t]*i[tank][t] - system['X'][t]*(system['G'][t]-s[tank][t]) for t in timeslots for tank in system['tanks']])      
+        prob += pulp.lpSum([
+            system['I'][t]*sum([i[tank][t] for tank in system['tanks']]) +
+            system['X'][t]*sum([s[tank][t] for tank in system['tanks']])
+            for t in timeslots
+        ])
 
         # CONSTRAINTS
         w = {}
