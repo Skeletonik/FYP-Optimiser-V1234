@@ -49,9 +49,10 @@ def makeIAndXTariffs (pricing_data:list) -> list:
     }
     for row in pricing_data:
         # Sum the components which make each price, to make a list of price WRT time
-        I = sum([float(row[cost])/10 for cost in I_components])
+        # + 4.5136 is a flat "final consumption levy"
+        I = sum([float(row[cost])/10 for cost in I_components]) + 4.5136
         X = sum([float(row[cost])/10 for cost in X_components])
-        paidI = sum([float(row[cost])/10 for cost in paidI_components])
+        paidI = sum([float(row[cost])/10 for cost in paidI_components]) + 4.5136
         paidX = sum([float(row[cost])/10 for cost in paidX_components])
         tariffs['I'].append(I)
         tariffs['X'].append(X)
