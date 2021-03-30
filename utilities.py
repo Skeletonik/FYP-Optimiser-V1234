@@ -40,13 +40,13 @@ def datetimeify (string:str) -> datetime.date:
 
     return datetime.strptime(string, string_format)
 
-def recursiveReplace (obj, key, replace_value):
+def recursiveReplace (obj, replace_key, replace_value):
     """ Replace the value of a dictionary key with replace_value, recursively """
-    if key in obj:
-        obj[key] = replace_value
-    for item in obj:
-        if type(obj[item]) == 'dict':
-            obj[item] = recursiveReplace(obj[item], key, replace_value)
+    if replace_key in obj:
+        obj[replace_key] = replace_value
+    for key in obj:
+        if type(obj[key]) == dict:
+            obj[key] = recursiveReplace(obj[key], replace_key, replace_value)
     return obj
 
 def listProduct (a:list, b:list) -> list:
