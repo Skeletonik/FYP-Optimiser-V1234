@@ -15,7 +15,7 @@ class MixergyModel:
             "TANK_LOSSES" in tank_config['params'],
             "HEATING_TANK_GAIN" in tank_config['params']
         ]):
-            Exception("Invalid tank configuration: Missing keys")
+            raise Exception("Invalid tank configuration: Missing keys")
         # Check they're all the same length (avoiding a keyerror)
         if not ( 
             len(tank_config['params']["TANK_LOSSES"]) == 
@@ -32,6 +32,9 @@ class MixergyModel:
     def unpack(self, tank_config:dict):
         """ Unpack the settings dict to the tank object. Process any dates/times from JSON, etc """
         self.tank_id = tank_config['tank_id']
+        # This may or may not agree with the dummy, untested
+        if 'user_pass' in tank_config:
+            self.user_pass = tank_config['user_pass']
 
         # If there's an H, it's intended to be used as demand_blocks
         # H in class MixergyModel is a function we don't want overwritten
@@ -173,9 +176,11 @@ class MixergyModel:
         # pylint: disable=import-error
         from user_rest import UserREST
 
-        username = "damon@owensquare.coop"
+        [username, password] = self.user_pass
+
+        # username = "damon@owensquare.coop"
         # username = "damon@a5gard.net"
-        password = "SyM818^M5h"
+        # password = "SyM818^M5h"
         host = "www.mixergy.io"
 
         ts_from = int(time_from.timestamp())*1000
