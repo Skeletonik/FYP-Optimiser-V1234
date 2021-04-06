@@ -158,7 +158,7 @@ class MixergyModel:
                 consumption = 0
                 energy = 0
         # Put the remaining data in the last block
-        # Needed to line up lengths
+        # Needed to line up lengths (often you'll be a record short)
         block_data.append({
                     'delta_t': sum_t,
                     'consumption': consumption,
@@ -170,6 +170,7 @@ class MixergyModel:
     def _accessRest (self, time_from:datetime.date, time_to:datetime.date) -> dict:
         """ Access the Mixergy REST API to retrieve tank data. Credit to CEPro
         Uses CEPro user_rest """
+        import datetime
         # sledgehammer, walnut, we meet again
         import os, sys
         sys.path.append(os.path.relpath('./mixergyio_main'))
@@ -178,21 +179,43 @@ class MixergyModel:
 
         [username, password] = self.user_pass
 
-        # username = "damon@owensquare.coop"
-        # username = "damon@a5gard.net"
-        # password = "SyM818^M5h"
         host = "www.mixergy.io"
 
-        ts_from = int(time_from.timestamp())*1000
-        ts_to   = int(time_to.timestamp())*1000
+        # Find how many results we're expecting (one per minute)
+        delta_t        = time_to - time_from
+        expected_count = delta_t.days*24*60 + delta_t.seconds/60
 
+        # Can only request 1.38days from UserREST, so need to divide up
+        # Set to 1.38 on the off chance someone wants 1.2 days or something
+        content = []
         with UserREST(host, username, password) as ur:
-        # tanks = ur.get_tanks()
-        # for sn, tank in tanks.items():
             tank = ur.get_tank(self.tank_id)
-            measurements = ur.get_tank_measurements(tank, ts_from, ts_to)
+            # While the time being requested is too long, chop it to smaller windows
+            while time_to - time_from > datetime.timedelta(days=1.38):
+                # Find the day 1 day ahead
+                time_plusdelta = time_from + datetime.timedelta(days=1)
+                # Make the timestamps for our partial window
+                ts_from = int(time_from.timestamp())*1000
+                ts_plusdelta = int(time_plusdelta.timestamp())*1000
+                # Add the content from that request to the end of the content list
+                content += ur.get_tank_measurements(tank, ts_from, ts_plusdelta)['content']
+                # Move the from date forwards
+                time_from = time_plusdelta
+            # With less than 1.38 days deltatime, make a straightforward request
+            # Also append to the list, so it's compatible either way
+            ts_from = int(time_from.timestamp())*1000
+            ts_to   = int(time_to.timestamp())*1000
+            content += ur.get_tank_measurements(tank, ts_from, ts_to)['content']
 
-        return measurements['content']
+        # Raise a warning if we don't have enough data (close enough anyway)
+        # This error is annoying to find
+        # TBD - improve resilience by using real record time, not deltas, to group
+        # This will warn when we're missing >20min of data
+
+        if abs(len(content) - expected_count) > 20:
+            raise Warning("There's missing data for tank ", self.tank_id, ". Check the Mixergy portal for offline time")
+
+        return content
 
     def populate (self, time_from:datetime.date, time_to:datetime.date, supply_period_duration:int):
         """ Populate this MixergyModel from the Mixergy API. Fetches data between dates, and brackets
