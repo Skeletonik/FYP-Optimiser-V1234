@@ -153,27 +153,33 @@ class MixergyModel:
         energy = 0
 
         for t in delta_data:
-            delta_t = t['recorded_time'] - block_starttime
-            consumption += t['effect_adjusted']
-            energy += t['energy']
-            # Once n_min have been summed, append and reset
-            # Because we're using real datetime objects here, someone (not me) can check for discontinuity
-            if delta_t >= block_duration:
+            # Whilst we're not up to the half hour mark, keep adding
+            if t['recorded_time'] <= block_starttime + block_duration:
+                consumption += t['effect_adjusted']
+                energy += t['energy']
+            else:
+                # Once we've reached it, write out the timeslot
                 blocks_data.append({
-                    'delta_t': delta_t.seconds,
+                    'delta_t': (t['recorded_time'] - block_starttime).seconds,
                     'consumption': consumption,
                     'energy': energy
                 })
-                block_starttime = t['recorded_time']
-                consumption = 0
-                energy = 0
-        # Put the remaining data in the last block
-        # Needed to line up lengths (often you'll be a record short)
+                # Then, set the next threshold to block_starttime += **block_duration**
+                # Adding to the last recorded time causes 1min/2blocks drift, so breaks >24hrs
+                # This way we'll be a consistent small amount out, and hopefully all data is used
+                block_starttime += block_duration
+                # Use the values for this minute which tipped us over
+                consumption = t['effect_adjusted']
+                energy = t['energy']
+
+        # Write out the last of the data to a block.
+        # You're borderline guaranteed to come up ~1min short
+        # Without this, that makes you a whole block short
         blocks_data.append({
-                    'delta_t': delta_t.seconds,
-                    'consumption': consumption,
-                    'energy': energy
-                })
+                'delta_t': (t['recorded_time'] - block_starttime).seconds,
+                'consumption': consumption,
+                'energy': energy
+            })
 
         return blocks_data
 
@@ -220,10 +226,10 @@ class MixergyModel:
         # Raise a warning if we don't have enough data (close enough anyway)
         # This error is annoying to find
         # TBD - improve resilience by using real record time, not deltas, to group
-        # This will warn when we're missing >20min of data
+        # This will warn when we're missing >200min of data
 
-        if abs(len(content) - expected_count) > 20:
-            raise Warning("There's missing data for tank ", self.tank_id, ". Check the Mixergy portal for offline time")
+        if expected_count - len(content) > 200:
+            raise Warning("There's lots of missing data (too little) for tank ", self.tank_id, ". Check the Mixergy portal for offline time in configured window. Got", len(content), "data items, expected ", expected_count)
 
         return content
 
