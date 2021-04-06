@@ -62,8 +62,6 @@ class SystemAssembler:
         from fetchMixergy import mixergyModel
         from utilities import datetimeify
         tank_config = loadFromJSON(filename)[tank_name]
-        date_from = datetimeify(date_from)
-        date_to = datetimeify(date_to)
         tank = mixergyModel.MixergyModel(tank_config)
         tank.populate(date_from, date_to, 30)
         return tank
@@ -98,11 +96,12 @@ class SystemAssembler:
             Run all the functions necessary to assemble the system 
             """ 
         from utilities import datetimeify
+        from datetime import timedelta
         # We know exactly the variables we're looking for: I, X, G, H*tank
         # So let's tackle the fixed ones first
         # Why bother having the 'dataSources'? Just make included stuff self-replacing like H....
         config = self.config
-        need_to_fetch = ['I', 'X', 'G', 'tanks'] 
+        need_to_fetch = ['I', 'X', 'G', 'tanks']
         ix_cosourced     = True if config['I'] == config['X'] else False
         if ix_cosourced: need_to_fetch.remove('X')
 
@@ -112,11 +111,15 @@ class SystemAssembler:
         for field in need_to_fetch:
             # Find dates and make them datetime objects
             # Makes life much prettier later
-            for key in config[field]:
-                if 'date' in key:
-                    config[field][key] = datetimeify(config[field][key])
+            if 'date_from' in config[field]:
+                config[field]['date_from'] = datetimeify(config[field]['date_from'])
+                config[field]['date_to']   = config[field]['date_from'] + timedelta(hours = config['optimization_duration'])
+            # for key in config[field]:
+            #     if 'date' in key:
+            #         config[field][key] = datetimeify(config[field][key])
             system[field] = self.autoSelectSource(config[field], field)
 
+        # What happens if ix_cosourced=false but I is an object? - TBD
         if ix_cosourced:
             if type(system['I']) == dict:
                 system['X'] = system['I']['X']
@@ -131,6 +134,8 @@ class SystemAssembler:
             
         # Now we need to go through the tanks and source their data
         for tank in system['tanks']:
+            system['tanks'][tank]['date_from'] = datetimeify(system['tanks'][tank]['date_from'])
+            system['tanks'][tank]['date_to']   = system['tanks'][tank]['date_from'] + timedelta(hours = config['optimization_duration'])
             this_tank = system['tanks'][tank]
             # Create a tank object for every tank
             if this_tank['source'] == "MixergyModel":

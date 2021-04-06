@@ -1,9 +1,10 @@
 {
     "ECC": {
+        "user_pass": ["damon@owensquare.coop", "SyM818^M5h"],
         "tank_id": "MX001224",
         "params": {
-            "TANK_LOSSES": [-0.000364187823, -0.000809828852],
-            "HEATING_TANK_GAIN" : [6.172783109, 7.017916687],
+            "TANK_LOSSES": [-0.022360266, -0.097117474],
+            "HEATING_TANK_GAIN" : [6.182967037, 8.091063334],
             "heater_power": 3,
             "supply_period_duration": 30
         },
@@ -16,5 +17,15 @@
     }, 
     "Nursery": {
         
+    },
+    "Damon": {
+        "user_pass": ["damon@a5gard.net", "SyM818^M5h"],
+        "tank_id": "MX001896",
+        "params": {
+            "TANK_LOSSES": [-0.000735962892],
+            "HEATING_TANK_GAIN" : [12.26539269],
+            "heater_power": 3,
+            "supply_period_duration": 30
+        }
     }
 }

@@ -1,21 +1,19 @@
 {
+    "optimization_duration": 24,
     "I": {
         "source": "LJ_CSV",
         "filename": "./input_data/damons_HH_combined.csv", 
-        "date_from": "2021-01-28T00:00:00",
-        "date_to": "2021-01-29T00:00:00"
+        "date_from": "2021-02-11T00:00:00"
     },
     "X": {
         "source": "LJ_CSV",
         "filename": "./input_data/damons_HH_combined.csv", 
-        "date_from": "2021-01-28T00:00:00",
-        "date_to": "2021-01-29T00:00:00"
+        "date_from": "2021-02-11T00:00:00"
     }, 
     "G": {
         "source": "PV_CSV",
         "filename": "./input_data/damons_ECC-gen-meter-intervals.csv",
-        "date_from": "2021-02-28T00:00:00",
-        "date_to": "2021-03-01T00:00:00"
+        "date_from": "2021-02-11T00:00:00"
     },
     "tanks": {
         "source": "included",
@@ -24,8 +22,13 @@
                 "source": "MixergyModel",
                 "filename": "./input_data/tank_parameters.json",
                 "tankname": "ECC",
-                "date_from": "2021-02-28T00:00:00",
-                "date_to": "2021-03-01T00:00:00"
+                "date_from": "2021-03-14T00:00:00"
+            },
+            "Nursery": {
+                "source": "MixergyModel",
+                "filename": "./input_data/tank_parameters.json",
+                "tankname": "Damon",
+                "date_from": "2021-03-29T00:00:00"
             }
         }
     }
