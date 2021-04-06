@@ -85,7 +85,7 @@ if __name__ == "__main__":
     data_as_csv = completedObjToCSV(completed_parsed)
     
     # Save as csv for Damon's use
-    with open('./completedoptimizer.csv', 'w') as csvfile:
+    with open('./output/completedoptimizer.csv', 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         for row in data_as_csv:
             writer.writerow(row)
@@ -99,4 +99,4 @@ if __name__ == "__main__":
     for tank in tanks:
         completed_parsed['system']['tanks'][tank] = {"H": tanks[tank].H()}
 
-    saveAsJSON('./completedoptimizer.json', completed_parsed)
+    saveAsJSON('./output/completedoptimizer.json', completed_parsed)
