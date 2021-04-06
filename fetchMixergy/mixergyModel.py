@@ -62,15 +62,16 @@ class MixergyModel:
             self.special_periods = special_periods
 
 
-    def _isSpecialPeriod (self, ts:int) -> int:
+    def _isSpecialPeriod (self, date_time:[datetime.datetime, int]) -> int:
         """ Check if the current time is special, and if it is, what kind """
         # Check every period to see if our time falls in the window
         # If it does, return the period
         # TBD: Overlapping periods (and/or rejecting them)
+        if type(date_time) is int:
+            date_time = datetime.datetime.fromtimestamp(date_time)
         if hasattr(self, 'special_periods'):
-            time = datetime.datetime.fromtimestamp(ts).time()
             for period in self.special_periods:
-                if self.special_periods[period]['time_from'] <= time < self.special_periods[period]['time_to']:
+                if self.special_periods[period]['time_from'] <= date_time.time() < self.special_periods[period]['time_to']:
                     return int(period)
         # If we're here, nothing matches; it's not in one
         return 0
@@ -106,11 +107,11 @@ class MixergyModel:
             # It's Unix format seconds
             # Because of python being weird (the fact that t and prev are both mix_data[0] in the first run), it appears
             #   I don't need to deal with prev separately. Dividing one does both
-            t['recordedTime'] = int(t['recordedTime']/1000)
+            t['recordedTime'] = datetime.datetime.fromtimestamp(t['recordedTime']/1000)
             delta_t       = t['recordedTime'] - prev['recordedTime']
             delta_charge  = t['charge'] - prev['charge']
             # Find energy put in the tank (Watt Seconds) -> kWh
-            energy = (t['voltage'] * t['current'] * delta_t)/3600000
+            energy = (t['voltage'] * t['current'] * delta_t.seconds)/3600000
             # Adjust to remove heating effect (no deltaSoC) and reinstate losses which were
             #   covered up by heating (negative deltaSoC)
             # Then remove those losses again (no deltaSoC)
@@ -121,7 +122,7 @@ class MixergyModel:
             ###############################################################
             # Good work, evening Seb (?) - Also Evening Seb
 
-            heating_adjusted = delta_charge - self._heatingGain(delta_t, energy, self._isSpecialPeriod(t['recordedTime']))
+            heating_adjusted = delta_charge - self._heatingGain(delta_t.seconds, energy, self._isSpecialPeriod(t['recordedTime']))
             # effect_adjusted  = heating_adjusted - self._tankLosses(delta_t, self._isSpecialPeriod(t['recordedTime']))
             effect_adjusted = heating_adjusted
 
@@ -129,7 +130,14 @@ class MixergyModel:
             # effect_adjusted = effect_adjusted if effect_adjusted < 0 else 0
 
             # Pack it all up in a nice dict and append to system record
-            processed_data.append({'delta_t': delta_t, 'delta_charge': delta_charge, 'energy':energy, 'heating_adjusted': heating_adjusted, 'effect_adjusted': effect_adjusted})
+            processed_data.append({
+                'recorded_time': t['recordedTime'], 
+                'delta_t': delta_t, 
+                'delta_charge': delta_charge, 
+                'energy':energy, 
+                'heating_adjusted': heating_adjusted, 
+                'effect_adjusted': effect_adjusted
+            })
             # Update the previous record to this one
             prev = t
         
@@ -138,34 +146,36 @@ class MixergyModel:
     def _nMinuteBlocks (self, delta_data:list, n_minutes:int) -> list:
         """ Collect up minute-by-minute data to n_minute-long blocks. Spare minutes 
         are added to the last block """
-        block_data = []
-        sum_t = 0
+        blocks_data = []
+        block_starttime = delta_data[0]['recorded_time']
+        block_duration  = datetime.timedelta(minutes = n_minutes)
         consumption = 0
         energy = 0
 
         for t in delta_data:
-            sum_t += t['delta_t']
+            delta_t = t['recorded_time'] - block_starttime
             consumption += t['effect_adjusted']
             energy += t['energy']
             # Once n_min have been summed, append and reset
-            if sum_t >= n_minutes*60:
-                block_data.append({
-                    'delta_t': sum_t,
+            # Because we're using real datetime objects here, someone (not me) can check for discontinuity
+            if delta_t >= block_duration:
+                blocks_data.append({
+                    'delta_t': delta_t.seconds,
                     'consumption': consumption,
                     'energy': energy
                 })
-                sum_t = 0
+                block_starttime = t['recorded_time']
                 consumption = 0
                 energy = 0
         # Put the remaining data in the last block
         # Needed to line up lengths (often you'll be a record short)
-        block_data.append({
-                    'delta_t': sum_t,
+        blocks_data.append({
+                    'delta_t': delta_t.seconds,
                     'consumption': consumption,
                     'energy': energy
                 })
 
-        return block_data
+        return blocks_data
 
     def _accessRest (self, time_from:datetime.date, time_to:datetime.date) -> dict:
         """ Access the Mixergy REST API to retrieve tank data. Credit to CEPro
