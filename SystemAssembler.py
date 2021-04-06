@@ -59,7 +59,7 @@ class SystemAssembler:
 
     def MixModel (self, filename:str, tank_name:str, date_from:date, date_to:date) -> list:
         from utilities import loadFromJSON
-        from fetchMixergy import mixergyModel
+        import mixergyModel
         from utilities import datetimeify
         tank_config = loadFromJSON(filename)[tank_name]
         tank = mixergyModel.MixergyModel(tank_config)
@@ -67,7 +67,7 @@ class SystemAssembler:
         return tank
 
     def DummyModel (self, tank_config):
-        from fetchMixergy import mixergyModel
+        import mixergyModel
         tank = mixergyModel.MixergyModel(tank_config)
         return tank
 

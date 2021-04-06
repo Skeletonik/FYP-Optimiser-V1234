@@ -22,7 +22,7 @@
                 "source": "MixergyModel",
                 "filename": "./input_data/tank_parameters.json",
                 "tankname": "ECC",
-                "date_from": "2021-03-14T00:00:00"
+                "date_from": "2021-02-14T00:00:00"
             },
             "Nursery": {
                 "source": "MixergyModel",
