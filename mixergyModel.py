@@ -4,11 +4,11 @@ class MixergyModel:
     def __init__(self, tank_config:dict):
         """ Initialise a MixergyModel. Can create a dummy if H is provided in params """
         # Validate the config
-        self.validate(tank_config)
+        self._validate(tank_config)
         # Given it's valid, process the config to a nice format
-        self.unpack(tank_config)
+        self._unpack(tank_config)
 
-    def validate(self, tank_config:dict) -> bool:
+    def _validate(self, tank_config:dict) -> bool:
         """ Validate the tank config being provided. Most important, check TANK_LOSSES and HEATING_TANK_GAIN exist """
         # Check all the keys exist
         if not all([
@@ -23,13 +23,14 @@ class MixergyModel:
         ):
             raise Exception("Mismatched tank parameter lengths")
         # If we've got a special tank, check it's correctly defined
+        # Special tanks are defined by a variable list len()>1
         if len(tank_config['params']["TANK_LOSSES"]) > 1:
             if len(tank_config['unusual_periods']) + 1 == len(tank_config['params']["TANK_LOSSES"]):
                 return True
             else:
                 raise Exception("Not enough special period definitions for special periods")
 
-    def unpack(self, tank_config:dict):
+    def _unpack(self, tank_config:dict):
         """ Unpack the settings dict to the tank object. Process any dates/times from JSON, etc """
         self.tank_id = tank_config['tank_id']
         # This may or may not agree with the dummy, untested
@@ -93,7 +94,11 @@ class MixergyModel:
 
         # Total losses hidden by heating are:
         #   ([+ve gain effect of heating (%/min)] -  [-ve real losses (%/min)])
-        return self.HEATING_TANK_GAIN[special_period]*energy + self.TANK_LOSSES[special_period]*delta_t
+        ########### So why does the comment say minus and the code say plus? - evening Seb ###########
+        # return self.HEATING_TANK_GAIN[special_period]*energy + self.TANK_LOSSES[special_period]*delta_t
+
+        heating_gains = self.HEATING_TANK_GAIN[special_period]*energy
+        return heating_gains + self._tankLosses(delta_t, special_period)
 
     def _findDeltas (self, mixergy_data:dict) -> list:
         """ Find the change in SoC due to demand. Removes heating and loss effects 
@@ -112,22 +117,11 @@ class MixergyModel:
             delta_charge  = t['charge'] - prev['charge']
             # Find energy put in the tank (Watt Seconds) -> kWh
             energy = (t['voltage'] * t['current'] * delta_t.seconds)/3600000
-            # Adjust to remove heating effect (no deltaSoC) and reinstate losses which were
-            #   covered up by heating (negative deltaSoC)
-            # Then remove those losses again (no deltaSoC)
-            # What's left is pure demand
-            # This may seem redundant. It is.
-            # I feel like it's justifiable, and it certainly seems to work.
-            # Morning Seb should get back to you, TBD
-            ###############################################################
-            # Good work, evening Seb (?) - Also Evening Seb
-
+            # Adjust to remove heating effect (deltaSoC is just losses) and 
+            #   remove losses (deltaSoC should be zero)
             heating_adjusted = delta_charge - self._heatingGain(delta_t.seconds, energy, self._isSpecialPeriod(t['recordedTime']))
-            # effect_adjusted  = heating_adjusted - self._tankLosses(delta_t, self._isSpecialPeriod(t['recordedTime']))
+            # Legacy hangover. Probably trivially removable, but not egregious enough to bother. 
             effect_adjusted = heating_adjusted
-
-
-            # effect_adjusted = effect_adjusted if effect_adjusted < 0 else 0
 
             # Pack it all up in a nice dict and append to system record
             processed_data.append({
@@ -159,6 +153,7 @@ class MixergyModel:
                 energy += t['energy']
             else:
                 # Once we've reached it, write out the timeslot
+                # time - time = deltatime object. deltatime.seconds
                 blocks_data.append({
                     'delta_t': (t['recorded_time'] - block_starttime).seconds,
                     'consumption': consumption,

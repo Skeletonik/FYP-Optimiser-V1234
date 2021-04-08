@@ -13,17 +13,17 @@ class DHWOptimizer:
     def __init__(self, system:dict):
         self.system_definition = system
         # VALIDATE
-        validation = self.validate(self.system_definition)
+        validation = self._validate(self.system_definition)
         if validation['status'] == 0:    
             # CONSTRUCT
             self._constructProblem(system)
             # SOLVE
-            self.solveLp(self.prob)
+            self._solveLp(self.prob)
         # if validation failed, just give the validation status as feedback
         else:
             self.feedback = validation
 
-    def validate(self, system:dict) -> dict:
+    def _validate(self, system:dict) -> dict:
         """ SYSTEM VALIDATOR
             Validate the system configuration provided. Ensure all timeseriess are 
             valid lengths, and tank definition is physically valid 
@@ -32,25 +32,8 @@ class DHWOptimizer:
         if not (len(system['I']) == len(system['X']) == len(system['G'])):
             return {'status': 1, 'error': 'mismatched energy availability lengths'}
 
-        # # Ensure every tank....
-        # for tank in system ['tanks']:
-        #     # ... has valid tank parameters
-        #     if not all([
-        #         system['tanks'][tank]['heater_power'] > 0, 
-        #         system['tanks'][tank]['litres_per_kWh'] > 0, 
-        #         system['tanks'][tank]['dilution'] >= 1,
-        #         0 <= system['tanks'][tank]['loss'] <= 1, 
-        #         system['tanks'][tank]['w_init'] >= 0,
-        #         system['tanks'][tank]['tank_capacity'] >= 0,
-        #         len(system['tanks'][tank]['H']) == len(system['I'])
-        #     ]):
-        #         return {'status': 1, 'error': 'invalid parameters for tank \'' + tank +'\'.'}
-        #     # ... has a timeseries of consumption the same length as other timeseriess
-        #     if not (len(system['tanks'][tank]['H']) == len(system['I'])):
-        #         return {'status': 1, 'error': 'invalid DHW timeseries length for tank \'' + tank +'\''}
-
-        # Temporarily removed tank checks
-        # Completely changing to a model-based approach
+        # Completely changed to a model-based approach
+        # Should just check the type...
 
         # If we're here, everything's fine
         return {'status': 0}
@@ -122,7 +105,7 @@ class DHWOptimizer:
             
         self.prob = prob
 
-    def solveLp (self, prob:pulp.LpProblem) -> dict:
+    def _solveLp (self, prob:pulp.LpProblem) -> dict:
         """ LP SYSTEM SOLVER
             Solve the provided LP Problem, and package feedback to self.result() 
             """

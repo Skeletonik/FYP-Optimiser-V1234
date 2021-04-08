@@ -50,7 +50,7 @@ def main(config:dict):
     tic = time.perf_counter()
     lp = DHWOptimizer(system)
     toc = time.perf_counter()
-    print("That took ", toc-tic, " seconds")
+    print("LP took ", toc-tic, " seconds")
 
     # Create dict which contains the system which was run,
     #   and the response, if appropriate
