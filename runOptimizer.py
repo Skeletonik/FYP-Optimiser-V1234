@@ -55,6 +55,7 @@ def main(config:dict):
     # Create dict which contains the system which was run,
     #   and the response, if appropriate
     response = {
+        "lp_duration": toc-tic,
         "system": system
     }
 
@@ -85,7 +86,7 @@ if __name__ == "__main__":
     data_as_csv = completedObjToCSV(completed_parsed)
     
     # Save as csv for Damon's use
-    with open('./output/completedoptimizer.csv', 'w') as csvfile:
+    with open('./output/completedoptimizer2-pt2.csv', 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         for row in data_as_csv:
             writer.writerow(row)
