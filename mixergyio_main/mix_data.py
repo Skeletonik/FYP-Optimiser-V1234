@@ -37,11 +37,12 @@ def get_ms(t, offset=None):
 
     return t
 
+
 args = {
     'start': 1614080470,
     'end': 1614266885,
     'username': 'damon@owensquare.coop',
-    'password': "SyM818^M5h",
+    'password': "psw",
     # 'tank': '206e838f-6cd2-4dcf-b987-20b88faeff98',
     'host': 'www.mixergy.io',
     'output': time.strftime('%Y%m%d-%H%M%S') + '.csv'

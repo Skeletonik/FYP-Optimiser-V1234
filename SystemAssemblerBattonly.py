@@ -125,7 +125,7 @@ class SystemAssembler:
         # So let's tackle the fixed ones first
         # Why bother having the 'dataSources'? Just make included stuff self-replacing like H....
         config = self.config
-        need_to_fetch = ['I', 'X', 'G', 'tanks', 'E', 'SM']
+        need_to_fetch = ['I', 'X', 'G', 'E', 'SM']
         ix_cosourced     = True if config['I'] == config['X'] else False
         if ix_cosourced: need_to_fetch.remove('X')
 
@@ -157,6 +157,7 @@ class SystemAssembler:
                 Exception("Unknown 'I' format")
 
         # Now we need to go through the tanks and source their data
+        """
         for tank in system['tanks']:
             system['tanks'][tank]['date_from'] = datetimeify(system['tanks'][tank]['date_from'])
             system['tanks'][tank]['date_to']   = system['tanks'][tank]['date_from'] + timedelta(hours = config['optimization_duration'])
@@ -168,8 +169,9 @@ class SystemAssembler:
                 system['tanks'][tank] = self.DummyModel(this_tank['data'])
             else:
                 pass
+                """
         # T: print(system['E']) works...
-        # T: sinply load Carbon Price ( CP )
+        # T: simply load Carbon Price ( CP )
         system['CP'] = config['carbon_price']
             # Currently, can only be sourced direct from mixergy
             # system['tanks'][tank] = self.autoSelectSource(system['tanks'][tank]['H'], 'H')

@@ -1,0 +1,21 @@
+{
+    "Tesla": {
+        "params": {
+            "roundtrip_efficiency": 0.9,
+            "power_max" : 40,
+            "capacity_max": 160,
+            "SoC_max": 90,
+            "SoC_min": 10
+        }
+    },
+
+    "LFP": {
+        "params": {
+            "roundtrip_efficiency": 0.9,
+            "power_max" : 40,
+            "capacity_max": 160,
+            "SoC_max": 95,
+            "SoC_min": 5
+        }
+    }
+}

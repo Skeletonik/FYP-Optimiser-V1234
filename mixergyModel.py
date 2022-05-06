@@ -179,8 +179,10 @@ class MixergyModel:
         return blocks_data
 
     def _accessRest (self, time_from:datetime.date, time_to:datetime.date) -> dict:
-        """ Access the Mixergy REST API to retrieve tank data. Credit to CEPro
-        Uses CEPro user_rest """
+        """ Access the Mixergy REST API to retrieve tank data. 
+        **** Credit to CEPro ****
+        Uses CEPro user_rest 
+        """
         import datetime
         # sledgehammer, walnut, we meet again
         import os, sys
@@ -297,9 +299,15 @@ if __name__ == '__main__':
     from utilities import loadFromJSON
     tank_config = loadFromJSON('input_data/tank_parameters.json')
     import datetime
-    ts_from = datetime.datetime(2021, 2, 28)
-    ts_to   = datetime.datetime(2021, 3, 1)
+    ts_from = datetime.datetime(2022, 2, 25)
+    ts_to   = datetime.datetime(2022, 4, 18)
     supply_period_duration = 30
     MX001224 = MixergyModel(tank_config['ECC'])
     MX001224.populate(ts_from, ts_to, supply_period_duration)
-    print (MX001224.H())
+    print(MX001224.H())
+    print(MX001224.realworldE())
+    # MX001389 = MixergyModel(tank_config['Nursery'])
+    # MX001389.populate(ts_from, ts_to, supply_period_duration)
+    # print(MX001389.H())
+    # print(MX001389.realworldE())
+    # print(MX001389.lossInSupplyPeriod(4))

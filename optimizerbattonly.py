@@ -1,15 +1,15 @@
-### Battery + DHW OPTIMISER
+### Battery-only optimiser Version 3,4 based on the original ECC DHW OPTIMISER
 ### RELEASE 2.0
-### Functionality: Import, Export for each energy stoage
+### Functionality: Import, Export, Generation, etc.
 
 # Import PuLP (Linear Programming)
 import pulp
 import math
 
-class DHWOptimizer:
+class BatteryOptimiser:
     """ LINEAR OPTIMIZER Rev 3.0
-        Uses I, X, H and total import&export OSCE smart meter readings to produce power plan for n-many individually-defined tanks and a battery
-        Supports system: I, X, SM-imp, SM-exp, H, heater_power, l_per_kWh, W_init, loss, dilution
+        Uses I, X, E to produce power plan for a battery
+        Supports system: I, X
         T: now also E as the emissions intensity and CP as the carbon price in GBP/t CO2eq
         """
     def __init__(self, system:dict):
@@ -31,7 +31,7 @@ class DHWOptimizer:
             valid lengths, and tank definition is physically valid 
             """
         # Ensure energy availability timeseriess are of consistent length
-        if not (len(system['I']) == len(system['X']) == len(system['G']) ==  len(system['E']) ==  len(system['SM']['EXP'])):
+        if not (len(system['I']) == len(system['X']) ==  len(system['E']) ==  len(system['SM']['EXP'])):
             return {'status': 1, 'error': 'mismatched energy availability lengths'}
 
         # Completely changed to a model-based approach
@@ -45,64 +45,44 @@ class DHWOptimizer:
             Take the system, and format to an LP problem
             """
         # Name the problem, and define as (cost) minimisation
-        prob = pulp.LpProblem("Water_Optimisation", pulp.LpMinimize)
+        prob = pulp.LpProblem("Battery_Optimisation", pulp.LpMinimize)
 
         # VARIABLES
-        # There are as many of them as there are tanks*time slots, they must be >=0 and are continuous
 
         # p=total simulated power use by HWT
         # m = sim import
         # e = sim export
-        p = {}
+        # p = {}
 
-        # Battery parameters
+        ### T: BATTERY PARAMETERS
         # max battery power [kW] in/out
         bPower = 40
         # max battery in/out kWh/HH
         bMax_kWh = bPower/2
         # min and max battery SOC
-        SOCmin = 0.2
-        SOCmax = 0.8
+        SOCmin = 0.1
+        SOCmax = 0.9
         # Total kWh battery capacity
-        SOCcapacity = 160
+        SOCcap = 160
         # How much dSOC/kWh?
         # each kWh results in 1/SOC capacity %
-        SOCp = 1/SOCcapacity
-        # roundtrip efficiency
+        SOCp = 1/SOCcap
+        # roundtrip efficiency - Design spec value = 0.88; Practical value = 0.85
         REff = 0.85
         SREff = math.sqrt(REff)
         # midnight desired SoC
-        midnightSoC = 0.5
+        mSOC = 0.4
 
-        # UNUSED: Calculating Battery Lifecycle
-        # can be simplified
-        """
-        Batt_kWh_price = 550
-        Cycling_degrad_share = 0.77
-        Lifetime_FEC = 2050
-        Batt_GHG_kWhproduction = 76.07
-        Batt_price = Batt_kWh_price * SOCcapacity
-        Lifetime_kWh = Lifetime_FEC * SOCcapacity
-        # How much does it cost (in [p]) to cycle 1 kWh through the battery
-        b_use_cost = 100 * Batt_price * Cycling_degrad_share / Lifetime_kWh
-        # How much GHG emissions (in [g CO2eq]) is the 1 kWh cycling through the battery responsible for
-        b_use_ghg = 1000 * Batt_GHG_kWhproduction * Cycling_degrad_share / Lifetime_FEC
-        print(b_use_ghg)
-        """
 
-        # T: adding emissions
+        # Adding simple cost of battery throughput
+        # in [p/kWh of throughput]
+        CoT = 3
         # input emission price in GBP/t
         carbon_price = system['CP']
         # recalculate to fit the units as p/g
         cp = carbon_price * 0.0001
-
-
+        
         timeslots = range(len(system['I']))
-        # new variable combining i & s as p [kWh]
-        for tank in system['tanks']:
-            # i[tank] = pulp.LpVariable.dicts("i"+tank, [n for n in timeslots], lowBound=0, cat='Continuous')
-            # s[tank] = pulp.LpVariable.dicts("s"+tank, [n for n in timeslots], lowBound=0, cat='Continuous')
-            p[tank] = pulp.LpVariable.dicts("p" + tank, [n for n in timeslots], lowBound=0, cat='Continuous')
 
         # new variables: simulated import and simulated export with the grid [kWh] & battery export(y) = negative & import(z)
         m = pulp.LpVariable.dicts("m", [n for n in timeslots], lowBound=0, upBound=100 , cat='Continuous')
@@ -113,29 +93,28 @@ class DHWOptimizer:
 
         # T: total el. usage:
         # Total usage (u) = Import [kWh] + Generation [kWh] - Export [kWh]
-        # assuming HH SP
-        real_u = [(system['SM']['IMP'][t])+system['G'][t]-system['SM']['EXP'][t] for t in timeslots]
+        # Real_u now without PV gen - it is not needed
+        real_u = [(system['SM']['IMP'][t])-system['SM']['EXP'][t] for t in timeslots]
 
-        # real hot water tank mixergy power use, from Mixergy API, in kWh
-        real_hwt_p = [
-            sum(E_t)
-            for E_t in zip(*[system['tanks'][tank].realworldE() for tank in system['tanks']])
-        ]
+        # OBJECTIVE FUNCTION
 
-        # T: Other electricity usage (o) = Total usage - Real Mixergy Use
-        # Needed for future power balancing
-        real_o = [real_u[t] - real_hwt_p[t] for t in timeslots]
+        ####
+        # T: adding emissions & battery
 
 
         # NEW OF4 JUST DROPPED:
-        # vey same OF as in the battonly version
+
+        # LCA OF V2 Redemption
+        # ... + Batt Import(t) * ( CoT ) ) )
+        # + z[t] * CoT
 
         # T: minimising the sum of all import costs, (negative) export costs and battery throughput costs, including carbon
         # Sim Import(t)*(Grid Emissions(t)*CarbonP+ExpElectricityP(t))+(Export(neg)(t))*(Grid Emissions(t)*CarbonP+ExpElectricityP(t))+Batt_imp*CostThroughput
         # this can be duplicated and changed as needed (eg setting some variables constant, deleting the el. price component -> optim for carbon only...)
 
         prob += pulp.lpSum([
-            m[t] * (system['I'][t]+cp*system['E'][t]) + e[t] * (system['X'][t] +cp*system['E'][t]) for t in timeslots
+            m[t] * (system['I'][t] + cp * system['E'][t]) + e[t] * (system['X'][t] + cp * system['E'][t] ) + z[t] * CoT for t in
+            timeslots
         ])
 
 
@@ -143,47 +122,14 @@ class DHWOptimizer:
         w = {}
         for t in timeslots:
 
-            # For every tank in the system. All EQs in here apply to each tanks
-            for tank in system['tanks']:
-                # Set up the initial conditions
-                if t == 0:
-                    # Create a w[ater level] list for each tank
-                    w[tank] = []
-                    # Given this is the first time slot, set the SoC level to the s_init
-                    w[tank].append(system['tanks'][tank].soc_init)
-                # Everything in the middle is calculated
-                else:
-                    # Otherwise, calculate water from the previous 30min and consumption/generation
-                    # p now in [kWh], thus doubling to get the average kW power
-                    # water at t = (w[t-1] - consumption + (-ve) loss) + (power * heated water per kW within time period)
-                    # Sadly, because this is LP, we can't pass the variables in to a function
-                    w[tank].append(
-                        (w[tank][t-1] - system['tanks'][tank].H(t-1) + system['tanks'][tank].lossInSupplyPeriod(t-1)) + 
-                        p[tank][t-1]*2*system['tanks'][tank].heatingFromEnergy(t)
-                    )
-
-
-                # Ensure available SoC at t in each tank >= SoC demand in coming 30min (i.e. demand is met)
-                prob  += w[tank][t] >= system['tanks'][tank].H(t)
-                # Heater power, regardless of energy source, limited
-                prob += p[tank][t]*2 <= system['tanks'][tank].heater_power
-
-                # Each tank cannot contain negative water, and has a capacity limit of 100%
-                prob += w[tank][t] >= 0
-                prob += w[tank][t] <= 100
-
-            # Can only use generated solar once across all tanks - T: not anymore used
-            # prob += pulp.lpSum([s[tank][t] for tank in system['tanks']]) <= system['G'][t]
-
-            # T: Battery operation
+            # Battery operation
 
             if t == 0:
                 # Create battery SoC level (b)
                 b = []
                 # Given this is the first time slot, set the SoC level to the desired level
-                b.append(midnightSoC)
-
-                # forcing flows to 0 at midight
+                b.append(mSOC)
+                # forcing flows to 0
 
                 prob += y[t] == 0
                 prob += z[t] == 0
@@ -196,21 +142,19 @@ class DHWOptimizer:
                 prob += b[t] >= SOCmin
                 prob += b[t] <= SOCmax
 
-            # power balance function
+            # Power balance equation
             # _____________________________ - z[t] -y[t]
             # get all power flows to equal to zero, imports = exports
-            # 0 = Sim Import + Sim Export(neg) - Generic usage + Generation[kWh] - Batt imp - Batt exp(neg) - Mixergy
-            prob += pulp.lpSum([m[t] + e[t] - real_o[t] + system['G'][t] - z[t] -y[t] - [p[tank][t]  for tank in system['tanks']]]) == 0
-        # Battery power limited - in veriables settings
+            # 0 = Sim Import + Sim Export(neg) - Generic usage + Generation[kWh] - Batt imp - Batt exp(neg)
+            prob += pulp.lpSum([m[t] + e[t] - real_u[t] - z[t] -y[t]]) == 0
+            # print(b[t])
+
+        # Battery power limited - set in the variables' initialiastion
 
 
-        # Ensure each tank has its target set
-        # Dual constraint on final time period
-        for tank in system['tanks']:
-            prob += w[tank][len(timeslots)-1] >= system['tanks'][tank].soc_target
+        # Ensure battery has its midnight target set
 
-        # same for the Battery
-        prob += b[len(timeslots) - 1] >= midnightSoC
+        prob += b[len(timeslots) - 1] >= mSOC
 
         self.prob = prob
 
@@ -260,7 +204,7 @@ class DHWOptimizer:
 
         max_time = 0
         for variable in variables:
-            # T: made this much more ugly and less scalable - only assumes 2 specific HW tanks, could easily be changed probably to orig. version
+            # Variables auto-named by PuLP in format: [current_source][tank]_[timeslot]
             name_components = variable.name.split('_')
             # Separate the name out to its component parts
             optim_var_type = name_components[0]
@@ -284,6 +228,10 @@ class DHWOptimizer:
         for optim_var_type in powers:
             # Go through in numeric, not dict entry, order to create an ordered list
             powers[optim_var_type] = [powers[optim_var_type][t] for t in range(max_time+1)]
+
+        # powers['real_u'] = [real_u for t in timeslots]
+
+        # powers['real_o']
 
         powers['max_time'] = max_time
         return powers

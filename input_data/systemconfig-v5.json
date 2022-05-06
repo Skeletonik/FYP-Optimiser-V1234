@@ -1,0 +1,82 @@
+{
+    "optimization_duration": 24,
+    "supply_period_duration": 30,
+    "carbon_price": 100,
+    "I": {
+        "source": "LJ_CSV",
+        "filename": "./input_data/damons_HH_combined_20-22_DUoS-21up_Battery.csv",
+        "date_from": "2021-10-31T00:00:00",
+        "availability": "01/08/2020 - 07/04/2022"
+    },
+    "X": {
+        "source": "LJ_CSV",
+        "filename": "./input_data/damons_HH_combined_20-22_DUoS-21up_Battery.csv",
+        "date_from": "2021-10-31T00:00:00",
+        "availability": "01/08/2020 - 07/04/2022"
+    },
+    "G": {
+        "source": "PV_CSV",
+        "filename": "./input_data/damons_ECC-gen-meter-intervals3.csv",
+        "date_from": "2021-10-31T00:00:00",
+        "availability": "01/01/2016 - 09/04/2022 - to match SM date!"
+
+    },
+    "tanks": {
+        "source": "included",
+        "data": {
+            "ECC": {
+                "source": "MixergyModel",
+                "filename": "./input_data/tank_parameters.json",
+                "tankname": "ECC",
+                "date_from": "2021-07-05T00:00:00"
+            },
+
+            "Nursery":{
+                "source":"MixergyModel",
+                "filename":"./input_data/tank_parameters.json",
+                "tankname":"Nursery",
+                "date_from":"2021-07-31T00:00:00"
+			}
+        }
+    },
+    "not_tanks": {
+        "info": "legitimate HWT inputs",
+        "data": {
+            "Nursery":{
+                "source":"MixergyModel",
+                "filename":"./input_data/tank_parameters.json",
+                "tankname":"Nursery",
+                "date_from":"2021-07-05T00:00:00"
+			},
+
+
+            "ECC": {
+                "source": "MixergyModel",
+                "filename": "./input_data/tank_parameters.json",
+                "tankname": "ECC",
+                "date_from": "2021-07-05T00:00:00"
+            },
+            "ECC2": {
+                "source": "MixergyModel",
+                "filename": "./input_data/tank_parameters.json",
+                "tankname": "ECC",
+                "date_from": "2021-07-05T00:00:00"
+            }
+        }
+    },
+    "battery": {
+        "where_to_find_the_data": "battery parameters aer inputted in the optimiser.py / optimiserBattonly.py directly"
+    },
+     "E": {
+        "source": "CI_REST",
+        "date_from": "2021-10-31T00:00:00",
+        "postcode": "BS5",
+         "availability": "Live - preferably to match I, X dates, also G"
+    },
+    "SM": {
+        "source": "SM_CSV",
+        "filename": "./input_data/owensquare-2020-2022-intervals-30min.csv",
+        "date_from": "2021-10-31T00:00:00",
+         "availability": "01/01/2020 - 01/03/2022 - to match G dates, also Mixergy"
+    }
+}

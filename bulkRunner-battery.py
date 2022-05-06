@@ -16,22 +16,22 @@ from utilities import listSum
 import runOptimizer
 stock_config = loadFromJSON('./input_data/systemconfig-v5.json')
 
-csv_headers = ["duration (h)", "tank_date_from", "elecgen_date_from", "real kWh", "sim kWh", "Real APX Cost", "Real SSP Cost", "Sim APX Cost", "Sim SSP Cost", "sim_import", "sim_selfcon", "lp_duration"]
+csv_headers = ["duration (h)", "tank_date_from", "elecgen_date_from", "Real APX Cost", "Sim APX Cost", "Real SSP Cost", "Sim SSP Cost", "batt_in", "batt_out", "real_import", "sim_import", "real_export", "sim_export", "real_carbon", "sim_carbon", "lp_duration"]
 
 # Function which returns, as a string, a date deltadays from initial_date
 def strfdelta (initial_date, delta_days):
     return (initial_date+datetime.timedelta(days=delta_days)).strftime("%Y-%m-%dT%H:%M:%S")
 
-# Starting dates for tank and elec/gen
-tank_date = datetime.datetime(2021, 8, 1) # 28th Feb, first day after immersion off
-elecgen_date = datetime.datetime(2020, 8, 1)
-tank_date2 = datetime.datetime(2021, 8, 1) # March 31st, first installed day
+# Starting dates for Mixergy tank and elec/gen
+tank_date = datetime.datetime(2022, 1, 5)
+elecgen_date = datetime.datetime(2022, 1, 5)
+tank_date2 = datetime.datetime(2022, 1, 5)
 
 # Make arrays with those deltas
 # For 24hr period, 1-14 and 0-52
-tank_dates = [[strfdelta(tank_date, delta)] for delta in range(0, 1)] # Until 14 Mar
-elecgen_dates = [[strfdelta(elecgen_date, delta)] for delta in range(0, 1)]
-tank_dates2 = [[strfdelta(tank_date2, delta)] for delta in range(0, 1)]
+tank_dates = [[strfdelta(tank_date, delta)] for delta in range(0, 2)] # Until 14 Mar
+elecgen_dates = [[strfdelta(elecgen_date, delta)] for delta in range(0, 2)]
+tank_dates2 = [[strfdelta(tank_date2, delta)] for delta in range(0, 2)]
 
 # Duration in hours of optimisation
 duration = 24
@@ -44,7 +44,7 @@ for tank_date in tank_dates:
 
 print("running ", len(list_of_dates), "scenarios:")
 
-with open('./bulkRun/bulkrun-' + str(duration) + '-ECC+Nursery.csv', 'w') as csvfile:
+with open('./bulkRun/bulkrun-' + str(duration) + '-ECC-Nursery-newOF-fulldata.csv', 'w', newline='') as csvfile:
     
     writer = csv.writer(csvfile, delimiter=',')
     writer.writerow(csv_headers)
@@ -67,6 +67,8 @@ with open('./bulkRun/bulkrun-' + str(duration) + '-ECC+Nursery.csv', 'w') as csv
         system_config['tanks']['data']['ECC']['date_from'] = tank_date_from
         system_config['tanks']['data']['Nursery']['date_from'] = tank_date_from2
         # system_config['tanks']['data']['Damon']['date_from'] = tank_date_from2
+
+        # set new configuration file
         new_conf = system_config
 
         # Call the optimizer
@@ -79,21 +81,28 @@ with open('./bulkRun/bulkrun-' + str(duration) + '-ECC+Nursery.csv', 'w') as csv
         # Grab all the i(t)'s, and sum them at any time period to get system_i
         # This gives you system import power at t
         # Likewise for self_consumption
-        # Remember, these are in kW, not kWh, so need converting
-        sim_i = [
-            sum(i)* (system_config['supply_period_duration']/60) 
-                for i in zip(*[solution[tank]['i'] for tank in system['tanks']])
-        ]
-        sim_s = [
-            sum(s)* (system_config['supply_period_duration']/60) 
-                for s in zip(*[solution[tank]['s'] for tank in system['tanks']])
-        ]
-        # TBD - fix supply_period_duration
-        sim_kWh      = (sum(sim_i) + sum(sim_s))                                                 
-        sim_APX_cost = (sumProduct(sim_i, system['I']) + sumProduct(sim_s, system['X']))
-        sim_SSP_cost = (sumProduct(sim_i, system['paidI']) + sumProduct(sim_s, system['paidX']))
-        sim_import   = sum(sim_i)
-        sim_selfcon  = sum(sim_s)
+        # Remember, these should be in kWh
+        # sim_p = [
+          #   sum(i)
+            #     for i in zip(*[solution['pECC'] solution['pNursery'] for tank in system['tanks']])
+        # ]
+        #sim_s = [
+         #   sum(s)
+          #      for s in zip(*[solution[tank]['s'] for tank in system['tanks']])
+        # ]
+        # TBD - fix supply_period_duration - not
+        # sim
+
+        # sim_kWh      = (sum(solution['pECC']) + sum(solution['pNursery']))
+
+        sim_APX_cost = (sumProduct(solution['m'], system['I']) + sumProduct(solution['e'], system['X']))
+        sim_SSP_cost = (sumProduct(solution['m'], system['paidI']) + sumProduct(solution['e'], system['paidX']))
+        sim_carbon = (sumProduct(solution['m'], system['E']) + sumProduct(solution['e'], system['E']))
+
+        sim_imp = sum(solution['m'])
+        sim_exp = sum(solution['e'])
+        batt_imp   = sum(solution['z'])
+        batt_exp  = sum(solution['y'])
 
         ## PROCESS REAL DATA
         timeslots = range(len(system['I']))
@@ -111,20 +120,25 @@ with open('./bulkRun/bulkrun-' + str(duration) + '-ECC+Nursery.csv', 'w') as csv
 
         # Disassemble to s and i, exactly like the optimiser does
         # real_s is the lower of demand or generation (so selfcon first)
-        real_s = [min(real_E[t], G_kWh[t]) for t in timeslots]
+        # real_s = [min(real_E[t], G_kWh[t]) for t in timeslots]
 
         # real_i is what's left over after self-consumption
-        real_i = [real_E[t] - real_s[t] for t in timeslots]
+        # real_i = [real_E[t] - real_s[t] for t in timeslots]
 
         # Then we just follow the same process as for the sim data
-        real_kWh      = (sum(real_i) + sum(real_s))                                                 
-        real_APX_cost = (sumProduct(real_i, system['I']) + sumProduct(real_s, system['X']))
-        real_SSP_cost = (sumProduct(real_i, system['paidI']) + sumProduct(real_s, system['paidX']))
-        real_import   = sum(real_i)
-        real_selfcon  = sum(real_s)
+        # real_kWh      = (sum(real_i) + sum(real_s))
+        real_APX_cost = (sumProduct(system['SM']['IMP'], system['I']) + sumProduct(system['SM']['EXP'], system['X']))
+        real_SSP_cost = (sumProduct(system['SM']['IMP'], system['paidI']) + sumProduct(system['SM']['EXP'], system['paidX']))
+        real_carbon = (sumProduct(system['SM']['IMP'], system['E']) + sumProduct(system['SM']['EXP'], system['E']))
+
+        real_imp = sum(system['SM']['IMP'])
+        real_exp = sum(system['SM']['EXP'])
+        # real_import   = sum(real_i)
+        # real_selfcon  = sum(real_s)
         
         # Append the row
-        writer.writerow([optimization_duration, tank_date_from, elecgen_date_from, real_kWh, sim_kWh, real_APX_cost, real_SSP_cost, sim_APX_cost, sim_SSP_cost, sim_import, sim_selfcon, lp_duration])
+        # "duration (h)", "tank_date_from", "elecgen_date_from", "Real APX Cost", "Sim APX Cost","Real SSP Cost",  "Sim SSP Cost",  "batt_in", "batt_out", "real_import", "sim_import", "real_export", "sim_export", "real_carbon", "sim_carbon", "lp_duration"]
+        writer.writerow([optimization_duration, tank_date_from, elecgen_date_from, real_APX_cost, sim_APX_cost, real_SSP_cost, sim_SSP_cost, batt_imp, batt_exp, real_imp, sim_imp, real_exp, sim_exp, real_carbon, sim_carbon, lp_duration])
 
         """ original real E & S by Seb
         # E is in ***kWh***. Remember, i and s now in kWh

@@ -19,6 +19,7 @@ def importCSV (filename:str, date_from:datetime.date, date_to:datetime.date) -> 
     Note this function assumes 30min periods """
     # Ensure both dates are datetime objects
     for x in [date_from, date_to]:
+        # print(x)
         if type(x) is not datetime.datetime:
             raise Exception("Expected a datetime object, got a ", type(x))
 
@@ -50,26 +51,39 @@ def makeIAndXTariffs (pricing_data:list) -> list:
     for row in pricing_data:
         # Sum the components which make each price, to make a list of price WRT time
         # + 4.5136 is a flat "final consumption levy"
+        # dividing by 10 to get [p/kWh] from [GBP/MWh]
         I = sum([float(row[cost])/10 for cost in I_components]) + 4.5136
         X = sum([float(row[cost])/10 for cost in X_components])
         paidI = sum([float(row[cost])/10 for cost in paidI_components]) + 4.5136
+
         paidX = sum([float(row[cost])/10 for cost in paidX_components])
         tariffs['I'].append(I)
         tariffs['X'].append(X)
+
         tariffs['paidI'].append(paidI)
         tariffs['paidX'].append(paidX)
+
     return tariffs
 
+# T: changing file path to .. - for testing ; " . " for running
+# T: changing to the input file with more data - up to March 2022
+
 def main (filename, date_from, date_to) -> dict:
-    pricing_data = importCSV('./input_data/damons_HH_combined.csv', date_from, date_to)
+    # pricing_data = importCSV('./../input_data/damons_HH_combined.csv', date_from, date_to)
+
+    # pricing_data = importCSV('./input_data/damons_HH_combined_20-22_DUoS-21up_NoBattery.csv', date_from, date_to)
+    pricing_data = importCSV(filename, date_from, date_to)
+
     tariffs = makeIAndXTariffs(pricing_data)
     return tariffs
 
 if __name__ == '__main__':
     # 1am (SP3) on 2020/09/01
-    date_from = datetime.datetime(2020, 9, 1, 1)
+    date_from = datetime.datetime(2022, 1, 1, 0)
     # 1pm (SP27?) on 2020/09/01
-    date_to = datetime.datetime(2020, 9, 1, 13)
-    returned = main('./input_data/damons_HH_combined.csv', date_from, date_to)
+    date_to = datetime.datetime(2022, 1, 3, 13)
+    # returned = main('./../input_data/damons_HH_combined.csv', date_from, date_to)
+
+    returned = main('./../input_data/damons_HH_combined_20-22_DUoS-21up_NoBattery.csv', date_from, date_to)
     print(returned)
 

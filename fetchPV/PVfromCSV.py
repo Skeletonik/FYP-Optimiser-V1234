@@ -34,8 +34,8 @@ def makeGList (imported_data):
     G = []
     for row in imported_data:
         # Looking at the data, I want Import to be the generation really
-        # This is data for one meter, ~1/4 of total capacity
-        G.append(row['IMPORT']*4)
+        # T: edit V2 - keeping the original data, keeping the units [kWh] - as total PV generation per HH
+        G.append(row['IMPORT'])
     return G
 
 def main(filename, date_from, date_to):
@@ -46,8 +46,8 @@ def main(filename, date_from, date_to):
 
 if __name__ == '__main__':
     # 1am (SP3) on 2020/09/01
-    date_from = datetime.datetime(2020, 9, 1, 1)
+    date_from = datetime.datetime(2022, 3, 3, 1)
     # 1pm (SP27?) on 2020/09/01
-    date_to = datetime.datetime(2020, 9, 1, 13)
-    returned = main('./input_data/damons_ECC-gen-meter-intervals.csv', date_from, date_to)
+    date_to = datetime.datetime(2022, 3, 5, 13)
+    returned = main('./../input_data/damons_ECC-gen-meter-intervals3.csv', date_from, date_to)
     print(returned)

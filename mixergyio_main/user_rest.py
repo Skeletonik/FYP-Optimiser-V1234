@@ -46,7 +46,7 @@ class UserREST(HAL_REST):
     """Helper class for accessing Mixergy REST API
     """
 
-    def __init__(self, host='www.mixergy.io', username=None, password=None, verify=None, logout_on_exit=True):
+    def __init__(self, host='www.mixergy.io', username="damon@owensquare.coop", password="SyM818^M5h", verify=None, logout_on_exit=True):
         """Create dict, log in if credentials are supplied
 
         Parameters

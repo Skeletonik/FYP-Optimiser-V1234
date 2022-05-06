@@ -14,7 +14,7 @@ from user_rest import UserREST
 
 
 username = "damon@owensquare.coop"
-password = ""
+password = "psw"
 host = "www.mixergy.io"
 
 def main():
