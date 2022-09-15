@@ -1,5 +1,7 @@
 README
 
+Feel free to download and read the presentation and report on this project to get more context.
+
 STRUCTURE:
 *Optimiser has the Battery + HWT optimisation tool itself*
 Unconnected folders:
